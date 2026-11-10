@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from '../context/AuthContext';
 import { Plus, StickyNote, Trash2, X } from "lucide-react";
 import { Row, fieldStyle } from "../components/AddSheet";
 import Button, { BUTTON_CSS } from "../components/Button";
@@ -16,8 +17,10 @@ const seedPosts = () => [
 ];
 const timeLabel = (ts) => fmtShort(toStr(new Date(ts)));
 
-export default function Board({ session }) {
-  const me = session.type === "guest" ? "비회원" : session.name;
+export default function Board() {
+  const { session } = useAuth(); // 
+  const me = session?.type === "guest" ? "비회원" : session.name;
+  // const me = session.type === "guest" ? "비회원" : session.name;
   const [posts, setPosts] = useState(() => store.get(BOARD_KEY, null) ?? seedPosts());
   const [openId, setOpenId] = useState(null); // 펼친 글
   const [writing, setWriting] = useState(false);
