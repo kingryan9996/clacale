@@ -6,6 +6,11 @@ body,
   height: 100%;
 }
 
+/* 페이지마다 스크롤바 유무가 달라도 하단 탭바 위치가 흔들리지 않도록 */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: #f3f4f2;

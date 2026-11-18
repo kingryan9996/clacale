@@ -1,14 +1,17 @@
 import { useRef, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { ChevronDown, ChevronLeft, Clock, Heart, MapPin, Plus, Repeat, X } from "lucide-react";
 import { Row, fieldStyle } from "../components/AddSheet";
 import Button, { BUTTON_CSS } from "../components/Button";
 import { dlgBack, dlgCard } from "../components/DetailSheet";
+import Overlay from "../components/Overlay";
 import { ACCENT, BRANDS, brandOf, INK, font } from "../lib/constants";
-import { addDays, fmtDate, keyOf, todayKey } from "../lib/dates";
+import { addDays, fmtDate, fmtMD, keyOf, todayKey } from "../lib/dates";
 import { COUNTS, PERIODS, VALIDS, brandOccurrences, endDate, passLine, passTitle, pauseHistory, pauseState, shortenPause, startPause, statusMap } from "../lib/passes";
 
 /* ---------- 마이페이지: 프로필 / 내 이용권 / 찜 센터 / 커스텀 암장 ---------- */
-export default function MyPage({ session, passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange }) {
+export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange }) {
+  const { session } = useAuth(); // 전역에서 세션 가져오기
   const [view, setView] = useState("main"); // main | addPass
   const [pausing, setPausing] = useState(null); // 정지 설정 중인 이용권 id
   const [gymName, setGymName] = useState("");
@@ -74,9 +77,11 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
 
   const chip = (on) => ({ variant: on ? "primary" : "secondary", size: "sm", pill: true, "aria-pressed": on });
   const mini = { padding: "4px 10px", fontSize: 12, borderRadius: 8 };
+  const miniTight = { padding: "3px 7px", fontSize: 11, borderRadius: 7, whiteSpace: "nowrap" }; // 정지중 카드: 한 줄에 맞추기
 
   const renderPass = (x) => {
     const sk = stMap[x.id], ps = pauseState(x), b = brandOf(x.brand);
+    const paused = ps === "active" || ps === "scheduled";
     const badge = ps === "active" ? { label: "정지중", color: "#B45309", bg: "#FEF3C7" } : LABEL[sk];
     const hist = x.kind === "period" ? (sk === "waiting" ? null : pauseHistory(x) ? `정지 ${pauseHistory(x)}회` : "정지 이력 없음") : x.usedKeys?.length ? `자동 차감 ${x.usedKeys.length}회` : null;
     return (
@@ -89,43 +94,42 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
           {hist && <span style={{ flexShrink: 0, fontSize: 12, color: "rgba(0,0,0,.5)" }}>{hist}</span>}
           <span style={{ flexShrink: 0, borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg }}>{badge.label}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 6 }}>
-          <span style={{ minWidth: 0, fontSize: 12.5, lineHeight: 1.35, color: "rgba(0,0,0,.6)", wordBreak: "keep-all" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: paused ? 6 : 8, marginTop: 6 }}>
+          <span style={{ minWidth: 0, fontSize: paused ? 11.5 : 12.5, lineHeight: 1.35, color: "rgba(0,0,0,.6)", wordBreak: "keep-all", ...(paused ? { whiteSpace: "nowrap", flexShrink: 0 } : null) }}>
             {passLine(x, sk)}
           </span>
-          <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {paused && (
+            <span style={{ flexShrink: 0, fontSize: 11.5, lineHeight: 1.35, fontWeight: 600, color: "#B45309", whiteSpace: "nowrap" }}>
+              {ps === "active" ? "정지" : "정지 예정"} {fmtMD(x.pause.from)}~{fmtMD(x.pause.to)}
+            </span>
+          )}
+          <span style={{ display: "flex", gap: paused ? 4 : 6, flexShrink: 0 }}>
             {x.kind === "count" && sk === "active" && <Button variant="secondary" size="sm" style={mini} disabled={busy === x.id} onClick={() => consumeOnce(x)}>1회 사용</Button>}
-            {ps === "active" || ps === "scheduled"
-              ? <Button variant="outline" size="sm" style={mini} onClick={() => unpause(x)}>정지 해제</Button>
+            {paused
+              ? <Button variant="outline" size="sm" style={miniTight} onClick={() => unpause(x)}>정지 해제</Button>
               : sk === "active" && x.kind === "period" && <Button variant="outline" size="sm" style={mini} onClick={() => { setPfrom(todayKey); setPdays(15); setPausing(x.id); }}>기간 정지</Button>}
             {sk === "waiting" && <Button variant="outline" size="sm" style={mini} onClick={() => openActivate(x)}>사용 시작일 지정</Button>}
-            <Button variant="danger" size="sm" style={mini} aria-label={`${b.name} ${passTitle(x)} 삭제`} onClick={() => setDelPass(x.id)}>삭제</Button>
+            <Button variant="danger" size="sm" style={paused ? miniTight : mini} aria-label={`${b.name} ${passTitle(x)} 삭제`} onClick={() => setDelPass(x.id)}>삭제</Button>
           </span>
         </div>
-        {(ps === "active" || ps === "scheduled") && (
-          <div style={{ marginTop: 4, fontSize: 12.5, fontWeight: 600, color: "#B45309" }}>
-            {ps === "active" ? "정지 기간" : "정지 예정 기간"}: {fmtDate(x.pause.from)} ~ {fmtDate(x.pause.to)}
-          </div>
-        )}
       </div>
     );
   };
 
   return (
-    <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", background: "#F3F4F2", color: INK, fontFamily: font, paddingBottom: 64 }}>
+    <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", background: "#F3F4F2", color: INK, fontFamily: font }}>
       <style>{BUTTON_CSS}</style>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 12px", flexShrink: 0, background: "#fff", borderBottom: "1px solid rgba(0,0,0,.06)" }}>
-        {view === "addPass" && (
+      {/* 이용권 추가: 전체화면 뷰 (Overlay 포털 → <main> 패딩 밖에서 뷰포트 전체를 덮음). 메인 제목은 하단 탭바가 대신 표시 */}
+      {view === "addPass" && (
+        <Overlay style={{ display: "flex", flexDirection: "column", background: "#F3F4F2", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 12px", flexShrink: 0, background: "#fff", borderBottom: "1px solid rgba(0,0,0,.06)" }}>
           <Button variant="ghost" size="icon" onClick={() => setView("main")} aria-label="뒤로">
             <ChevronLeft size={22} />
           </Button>
-        )}
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{view === "main" ? "마이페이지" : "이용권 추가"}</h1>
-        <span style={{ width: 36 }} />
-      </header>
-
-      {view === "addPass" ? (
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 32px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>이용권 추가</h1>
+          <span style={{ width: 36 }} />
+        </header>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 16px 32px", display: "flex", flexDirection: "column", gap: 16 }}>
           <Row icon={MapPin} label="브랜드 (지점 구분 없이 브랜드 단위로 관리)">
             <select aria-label="이용권 브랜드" value={pb} onChange={(e) => setPb(e.target.value)} style={fieldStyle}>
               {BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -157,8 +161,11 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
           {blocked && <p role="alert" style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "#B91C1C" }}>{brandOf(pb).name} {passTitle(activeOfBrand)}이(가) 이용 중이라 같은 종류의 이용권은 등록할 수 없어요.</p>}
           <Button variant="primary" size="lg" disabled={blocked} onClick={addPass}>이용권 추가</Button>
         </div>
-      ) : (
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+        </Overlay>
+      )}
+
+      {/* 메인 화면 (바깥 여백은 App의 <main>이 담당) */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 16, display: "flex", flexDirection: "column", gap: 20 }}>
           {/* 프로필 섹션 */}
           <div style={{ ...box, display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ width: 44, height: 44, borderRadius: 999, background: ACCENT, color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
@@ -227,13 +234,12 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
             </div>
           </section>
         </div>
-      )}
 
       {/* 모달 팝업 레이어 (사용 시작일 지정, 정지 설정, 삭제 확인) */}
       {passes.find((y) => y.id === activating) && (() => {
         const t = passes.find((y) => y.id === activating);
         return (
-          <div role="dialog" aria-label="사용 시작일 지정" style={dlgBack}>
+          <Overlay layer={1} role="dialog" aria-label="사용 시작일 지정" style={dlgBack}>
             <div style={dlgCard}>
               <h4 style={{ margin: "0 0 12px", fontSize: 17 }}>{brandOf(t.brand).name} {passTitle(t)} 사용 시작일</h4>
               <input type="date" aria-label="사용 시작일" value={astart} onChange={(e) => e.target.value && setAstart(e.target.value)} style={fieldStyle} />
@@ -245,11 +251,11 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
                 <Button variant="primary" style={{ flex: 1 }} onClick={confirmActivate}>시작하기</Button>
               </div>
             </div>
-          </div>
+          </Overlay>
         );
       })()}
       {delPass != null && (
-        <div role="alertdialog" aria-label="이용권 삭제 확인" style={{ ...dlgBack, zIndex: 7 }}>
+        <Overlay layer={3} role="alertdialog" aria-label="이용권 삭제 확인" style={dlgBack}>
           <div style={dlgCard}>
             <h4 style={{ margin: "0 0 8px", fontSize: 17 }}>이용권을 삭제하시겠습니까?</h4>
             <p style={{ margin: 0, fontSize: 14, color: "rgba(0,0,0,.6)" }}>삭제한 이용권은 다시 복구할 수 없습니다.</p>
@@ -258,10 +264,10 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               <Button variant="primary" style={{ flex: 1, background: "#DC2626" }} onClick={() => { savePasses((l) => l.filter((y) => y.id !== delPass)); setDelPass(null); }}>확인</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
       {pausingPass && delAsk && (
-        <div role="alertdialog" aria-label="정지 기간 일정 삭제" style={{ ...dlgBack, zIndex: 6 }}>
+        <Overlay layer={2} role="alertdialog" aria-label="정지 기간 일정 삭제" style={dlgBack}>
           <div style={dlgCard}>
             <h4 style={{ margin: "0 0 8px", fontSize: 17, lineHeight: 1.4 }}>정지 기간에 포함된 {brandOf(pausingPass.brand).name} 암장의 일정을 삭제하시겠습니까?</h4>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "rgba(0,0,0,.6)" }}>
@@ -272,10 +278,10 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               <Button variant="primary" style={{ flex: 1 }} onClick={() => { onDeleteRange(pausingPass.brand, pfrom, pto); applyPause(); }}>확인</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
       {pausingPass && (
-        <div role="dialog" aria-label="기간 정지 설정" style={dlgBack}>
+        <Overlay layer={1} role="dialog" aria-label="기간 정지 설정" style={dlgBack}>
           <div style={dlgCard}>
             <h4 style={{ margin: "0 0 12px", fontSize: 17 }}>{brandOf(pausingPass.brand).name} 기간 정지</h4>
             <Row icon={Clock} label="정지 시작일">
@@ -290,7 +296,7 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               </div>
             </div>
             <p style={{ margin: "12px 0 0", fontSize: 13, lineHeight: 1.5, color: "rgba(0,0,0,.6)" }}>
-              정지 {fmtDate(pfrom)} ~ {fmtDate(addDays(pfrom, pdays - 1))}
+              정지 {fmtDate(pfrom)}~{fmtDate(addDays(pfrom, pdays - 1))}
               {pausingPass.expires && <><br />만료일 {fmtDate(pausingPass.expires)} → {fmtDate(addDays(pausingPass.expires, pdays))} (자동 연장)</>}
             </p>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
@@ -298,7 +304,7 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               <Button variant="primary" style={{ flex: 1 }} onClick={confirmPauseSet}>정지하기</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );

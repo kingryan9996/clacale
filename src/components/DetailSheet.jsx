@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Bell, Car, Clock, MapPin, Repeat, StickyNote, Trash2, Users, X } from "lucide-react";
 import Button from "./Button";
+import Overlay from "./Overlay";
 import Sheet, { titleStyle, topBar } from "./Sheet";
 import { ACCENT, REPEATS, brandOf } from "../lib/constants";
 import { alertLabel, fmtRange, t12 } from "../lib/dates";
@@ -8,7 +9,8 @@ import { alertLabel, fmtRange, t12 } from "../lib/dates";
 /* ---------- 일정 상세 (조회 + 삭제: 반복 범위 선택 -> 최종 확인) ---------- */
 const SCOPES = [{ id: "one", label: "이 일정만 삭제" }, { id: "after", label: "이후 일정 모두 삭제" }, { id: "all", label: "전체 반복 일정 삭제" }];
 
-export const dlgBack = { position: "absolute", inset: 0, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", padding: 24 };
+// 확인 다이얼로그 배경 — <Overlay style={dlgBack}>로 사용 (위치·z-index는 Overlay가 담당)
+export const dlgBack = { display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", padding: 24 };
 
 export const dlgCard = { width: "100%", maxWidth: 320, boxSizing: "border-box", background: "#fff", borderRadius: 20, padding: 20, boxShadow: "0 10px 30px rgba(0,0,0,.25)" };
 
@@ -48,7 +50,7 @@ export default function DetailSheet({ ev, st, onClose, onDelete }) {
           </div>
 
           {step === "scope" && (
-            <div role="dialog" aria-label="반복 일정 삭제 범위" style={dlgBack}>
+            <Overlay layer={1} role="dialog" aria-label="반복 일정 삭제 범위" style={dlgBack}>
               <div style={dlgCard}>
                 <h4 style={{ margin: "0 0 8px", fontSize: 17 }}>반복 일정 삭제</h4>
                 {SCOPES.map((o) => (
@@ -65,10 +67,10 @@ export default function DetailSheet({ ev, st, onClose, onDelete }) {
                   <Button variant="primary" style={{ flex: 1 }} onClick={() => setStep("confirm")}>다음</Button>
                 </div>
               </div>
-            </div>
+            </Overlay>
           )}
           {step === "confirm" && (
-            <div role="alertdialog" aria-label="삭제 확인" style={dlgBack}>
+            <Overlay layer={1} role="alertdialog" aria-label="삭제 확인" style={dlgBack}>
               <div style={dlgCard}>
                 <h4 style={{ margin: "0 0 8px", fontSize: 17 }}>일정을 삭제하시겠습니까?</h4>
                 {repeating && <p style={{ margin: "0 0 4px", fontSize: 14, color: "rgba(0,0,0,.55)" }}>{SCOPES.find((o) => o.id === scope).label}</p>}
@@ -77,7 +79,7 @@ export default function DetailSheet({ ev, st, onClose, onDelete }) {
                   <Button variant="primary" style={{ flex: 1, background: "#DC2626" }} onClick={() => { onDelete(ev, repeating ? scope : "all"); close(); }}>삭제</Button>
                 </div>
               </div>
-            </div>
+            </Overlay>
           )}
         </>
       )}

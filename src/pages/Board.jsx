@@ -30,11 +30,11 @@ export default function Board() {
   return (
     <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", background: "#F3F4F2", color: INK, fontFamily: font }}>
       <style>{BUTTON_CSS}</style>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 8px", flexShrink: 0 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0 12px", flexShrink: 0 }}>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>자유게시판</h1>
         <Button variant="brand" size="sm" onClick={() => setWriting(true)}><Plus size={16} />글쓰기</Button>
       </header>
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
         {sorted.length === 0 && <p style={{ margin: 0, padding: "24px 0", textAlign: "center", fontSize: 14, color: "rgba(0,0,0,.4)", background: "#fff", borderRadius: 16 }}>아직 글이 없어요. 첫 글을 남겨 보세요.</p>}
         {sorted.map((p) => {
           const open = openId === p.id;

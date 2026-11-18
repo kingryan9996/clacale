@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AuthProvider, useAuth } from '../context/AuthContext'
 import { BarChart3, Car, ChevronDown, ChevronLeft, ChevronRight, Clock, Menu, Plus, StickyNote, User, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddSheet from "../components/AddSheet";
@@ -9,10 +10,17 @@ import { ACCENT, DOW, INK, brandOf, dowColor, font, ko } from "../lib/constants"
 import { byStart, t12, today, todayKey, ymd } from "../lib/dates";
 import { occurrence, occursOn } from "../lib/events";
 
+function Meta({ icon: Icon, children }) {
+  return (
+    <span style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 14, color: "rgba(0,0,0,.6)" }}>
+      <Icon size={14} style={{ marginTop: 2, flexShrink: 0 }} />{children}
+    </span>
+  );
+}
 
 /* ---------- 메뉴 / 통계 / 로그인 유도 ---------- */
 function MenuSheet({ session, onStats, onSignOut, onMyPage, onClose }) {
-  const guest = session.type === "guest";
+  const guest = session?.type === "guest";
   return (
     <Sheet onClose={onClose}>
       {(close) => (
@@ -23,7 +31,7 @@ function MenuSheet({ session, onStats, onSignOut, onMyPage, onClose }) {
             <span style={{ width: 36 }} />
           </div>
           <div style={{ padding: "0 16px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-            <p style={{ margin: "0 0 8px", fontSize: 14, color: "rgba(0,0,0,.55)" }}>{guest ? "비회원(Guest) · 이 기기에 저장" : `${session.name} · ${session.provider}`}</p>
+            <p style={{ margin: "0 0 8px", fontSize: 14, color: "rgba(0,0,0,.55)" }}>{guest ? "비회원(Guest) · 이 기기에 저장" : `${session?.name} · ${session?.provider}`}</p>
             <Button variant="secondary" size="lg" style={{ justifyContent: "flex-start" }} onClick={onMyPage}><User size={18} />마이페이지</Button>
             <Button variant="secondary" size="lg" style={{ justifyContent: "flex-start" }} onClick={onStats}><BarChart3 size={18} />내 통계</Button>
             <Button variant="secondary" size="lg" style={{ justifyContent: "flex-start" }} onClick={onSignOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
@@ -87,7 +95,9 @@ function StatsSheet({ events, ym, onClose }) {
 }
 
 /* ---------- 캘린더 페이지: 월간 달력 + 선택 날짜 일정 리스트 + 추가/상세 시트 ---------- */
-export default function Calendar({ session, ym, setYm, sel, setSel, events, addEvent, deleteEvent, statOf, favs, toggleFav, passes, customGyms, adjustPasses, signOut }) {
+export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, deleteEvent, statOf, favs, toggleFav, passes, customGyms, adjustPasses, signOut }) {
+  const { session } = useAuth(); // 전역에서 세션 바로 가져오기!
+  
   const navigate = useNavigate();
   const [sheet, setSheet] = useState(false);
   const [ymOpen, setYmOpen] = useState(false);
@@ -141,8 +151,8 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
       <style>{BUTTON_CSS}</style>
 
       {/* 상단: 헤더 + 월간 캘린더 */}
-      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "#fff" }}>
-        <header className="flex items-center justify-between" style={{ position: "relative", flexShrink: 0, padding: "16px 16px 8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "#fff", borderRadius: 16 }}>
+        <header className="flex items-center justify-between" style={{ position: "relative", flexShrink: 0, padding: "8px 8px 4px" }}>
           <div className="flex items-center" style={{ gap: 4 }}>
             <Button variant="ghost" size="icon" onClick={() => moveMonth(-1)} aria-label="이전 달"><ChevronLeft size={20} /></Button>
             <Button variant="ghost" size="none" onClick={() => setYmOpen((v) => !v)} aria-expanded={ymOpen}
@@ -157,7 +167,7 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
           <Button variant="ghost" size="icon" aria-label="메뉴" onClick={() => setMenuOpen(true)}><Menu size={22} /></Button>
 
           {ymOpen && (
-            <div style={{ position: "absolute", left: 12, right: 12, top: 56, zIndex: 20, background: "#fff", borderRadius: 16, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,.18)" }}>
+            <div style={{ position: "absolute", left: 8, right: 8, top: 48, zIndex: 20, background: "#fff", borderRadius: 16, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,.18)" }}>
               <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
                 <Button variant="ghost" size="icon" onClick={() => setYm((v) => ({ ...v, y: v.y - 1 }))} aria-label="이전 연도"><ChevronLeft size={18} /></Button>
                 <span style={{ fontWeight: 600 }}>{ym.y}년</span>
@@ -175,7 +185,7 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
           )}
         </header>
 
-        <section style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "0 8px 0" }}>
+        <section style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "0 8px 8px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", flexShrink: 0, padding: "4px 0", textAlign: "center", fontSize: 12, fontWeight: 500 }}>
             {DOW.map((d, i) => (
               <span key={d} style={{ color: i === 0 || i === 6 ? dowColor(i) : "rgba(0,0,0,.5)" }}>{d}</span>
@@ -226,9 +236,9 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
       </div>
 
       {/* 하단: 선택한 날짜 일정 (고정 높이, 내부 스크롤) */}
-      <section style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", borderTop: "1px solid rgba(0,0,0,.06)" }}>
-        <h2 style={{ flexShrink: 0, margin: 0, padding: "8px 16px 6px", fontSize: 15, fontWeight: 700 }}>{selLabel}</h2>
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 56px" }}>
+      <section style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        <h2 style={{ flexShrink: 0, margin: 0, padding: "12px 0 6px", fontSize: 15, fontWeight: 700 }}>{selLabel}</h2>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 56 }}>
           {list.length === 0 ? (
             <p style={{ margin: 0, padding: "24px 0", textAlign: "center", fontSize: 14, color: "rgba(0,0,0,.4)", background: "#fff", borderRadius: 16 }}>
               이 날은 등록된 암장 일정이 없어요.<br />+ 버튼으로 추가해 보세요.
@@ -259,14 +269,14 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
 
       {/* Floating (+) : 검정 아이콘 */}
       <Button variant="floating" className="text-black" aria-label="일정 추가" onClick={() => setSheet(true)}
-        style={{ position: "absolute", bottom: 12, right: 16, zIndex: 20 }}>
+        style={{ position: "absolute", bottom: 12, right: 0, zIndex: 20 }}>
         <Plus size={22} strokeWidth={2.75} color="#000000" />
       </Button>
 
       {/* 선택한 날짜가 오늘이 아니거나 다른 달을 보고 있을 때 좌측 하단에 '오늘' 버튼 */}
       {showToday && (
         <Button variant="primary" size="sm" pill onClick={goToday} aria-label="오늘로 이동"
-          style={{ position: "absolute", bottom: 12, left: 16, zIndex: 20, height: 32, padding: "0 14px", fontSize: 13, boxShadow: "0 3px 10px rgba(0,0,0,.25)" }}>
+          style={{ position: "absolute", bottom: 12, left: 0, zIndex: 20, height: 32, padding: "0 14px", fontSize: 13, boxShadow: "0 3px 10px rgba(0,0,0,.25)" }}>
           오늘
         </Button>
       )}
