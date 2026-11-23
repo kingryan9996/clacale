@@ -1,4 +1,4 @@
-import { dayDiff, hm, keyOf, parseKey } from "./dates";
+import { dayDiff, hm, keyOf, parseKey } from "@/lib/dates";
 
 /* 반복 일정: 날짜 k에 e가 발생하는지, 그리고 그 날짜의 발생분(시작/종료) 만들기 */
 export const occursOn = (e, k) => {

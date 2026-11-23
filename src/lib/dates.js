@@ -1,4 +1,4 @@
-import { ALERTS, DOW } from "./constants";
+import { ALERTS, DOW } from "@/constants/schedule";
 
 /* ---------- 날짜 유틸 ---------- */
 export const pad = (n) => String(n).padStart(2, "0");
@@ -49,9 +49,6 @@ export const plus3h = (s) => toStr(new Date(new Date(s).getTime() + 3 * 3600000)
 /* ---------- 이용권 (브랜드 단위) / 기간 정지 ---------- */
 export const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); };
 
-export const fmtYMD = (k) => `${k.slice(2, 4)}.${k.slice(5, 7)}.${k.slice(8, 10)}`; // YY.MM.DD (이용권 카드용 축약)
-export const fmtMD = (k) => `${k.slice(5, 7)}.${k.slice(8, 10)}`; // MM.DD
-export const fmtYMDRange = (a, b) => `${fmtYMD(a)}~${a.slice(0, 4) === b.slice(0, 4) ? fmtMD(b) : fmtYMD(b)}`; // 같은 해면 끝 연도 생략
 export const fmtDate = (k) => `${k.slice(0, 4)}/${k.slice(5, 7)}/${k.slice(8, 10)}`; // YYYY/MM/DD (키는 이미 0 채움)
 
 export const H12 = Array.from({ length: 12 }, (_, i) => pad(i + 1)); // 01 ~ 12 (오전/오후는 별도 선택)

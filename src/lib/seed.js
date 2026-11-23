@@ -1,4 +1,4 @@
-import { addDays, dayKey, todayKey } from "./dates";
+import { addDays, dayKey, todayKey } from "@/lib/dates";
 
 // 초기 목업: 이미 만료된 이용권 5개 (브랜드·종류 혼합). Supabase용은 supabase/mock_passes.sql
 const mockPeriod = (id, brand, days, ago) => ({ id, brand, kind: "period", days, start: addDays(todayKey, -ago), expires: addDays(todayKey, -ago + days - 1), pause: null });

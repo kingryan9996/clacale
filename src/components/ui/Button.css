@@ -1,0 +1,74 @@
+:where(.ui-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s, transform 0.12s, opacity 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+  color: var(--color-text);
+}
+
+/* size */
+:where(.ui-btn[data-size="sm"]) { padding: 8px 14px; font-size: 14px; font-weight: 500; }
+:where(.ui-btn[data-size="md"]) { padding: 10px 16px; font-size: 15px; font-weight: 600; }
+:where(.ui-btn[data-size="lg"]) { padding: 14px 20px; font-size: 16px; font-weight: 600; }
+:where(.ui-btn[data-size="icon"]) { width: 36px; height: 36px; padding: 0; border-radius: var(--radius-full); }
+:where(.ui-btn[data-size="bare"]) { padding: 0; font-weight: inherit; font-size: inherit; border-radius: 0; }
+:where(.ui-btn[data-pill]) { border-radius: var(--radius-full); }
+:where(.ui-btn[data-full]) { width: 100%; }
+
+/* variant: 기본 색 */
+:where(.ui-btn[data-variant="primary"]) { background: var(--color-primary); color: var(--color-on-primary); }
+:where(.ui-btn[data-variant="secondary"]) { background: var(--color-fill); color: var(--color-text); }
+:where(.ui-btn[data-variant="outline"]) { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+:where(.ui-btn[data-variant="ghost"]) { background: transparent; color: var(--color-text); }
+:where(.ui-btn[data-variant="danger"]) { background: var(--color-danger-soft); color: var(--color-danger-strong); }
+:where(.ui-btn[data-variant="danger-solid"]) { background: var(--color-danger); color: var(--color-on-danger); }
+:where(.ui-btn[data-variant="kakao"]) { background: var(--color-kakao); color: var(--color-on-kakao); }
+:where(.ui-btn[data-variant="fab"]) {
+  width: 44px; height: 44px; padding: 0; border-radius: var(--radius-full);
+  background: var(--color-primary); color: var(--color-on-primary);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+/* :hover — 터치 기기에서 hover 가 남는 문제를 막기 위해 hover 가능한 기기에서만 */
+@media (hover: hover) {
+  :where(.ui-btn[data-variant="primary"]:hover:not(:disabled)) { background: var(--color-primary-hover); }
+  :where(.ui-btn[data-variant="fab"]:hover:not(:disabled)) { background: var(--color-primary-hover); }
+  :where(.ui-btn[data-variant="secondary"]:hover:not(:disabled)) { background: var(--color-border); }
+  :where(.ui-btn[data-variant="outline"]:hover:not(:disabled)) { background: var(--color-fill); }
+  :where(.ui-btn[data-variant="kakao"]:hover:not(:disabled)) { background: color-mix(in srgb, var(--color-kakao) 90%, black); }
+  :where(.ui-btn[data-variant="ghost"]:hover:not(:disabled)) { background: var(--color-border-subtle); }
+  :where(.ui-btn[data-variant="danger"]:hover:not(:disabled)) { background: color-mix(in srgb, var(--color-danger) 18%, white); }
+  :where(.ui-btn[data-variant="danger-solid"]:hover:not(:disabled)) { background: var(--color-danger-hover); }
+}
+
+/* :active */
+:where(.ui-btn[data-variant="primary"]:active:not(:disabled)) { background: var(--color-primary-active); }
+:where(.ui-btn[data-variant="fab"]:active:not(:disabled)) { background: var(--color-primary-active); transform: scale(0.92); }
+:where(.ui-btn[data-variant="secondary"]:active:not(:disabled)) { background: var(--color-border); }
+:where(.ui-btn[data-variant="outline"]:active:not(:disabled)) { background: var(--color-fill); }
+:where(.ui-btn[data-variant="kakao"]:active:not(:disabled)) { background: color-mix(in srgb, var(--color-kakao) 80%, black); }
+:where(.ui-btn[data-variant="ghost"]:active:not(:disabled)) { background: var(--color-border-subtle); }
+:where(.ui-btn[data-variant="danger"]:active:not(:disabled)) { background: color-mix(in srgb, var(--color-danger) 28%, white); }
+:where(.ui-btn[data-variant="danger-solid"]:active:not(:disabled)) { background: var(--color-danger-active); }
+
+/* :disabled */
+:where(.ui-btn:disabled) { cursor: not-allowed; opacity: 0.4; pointer-events: none; }
+:where(.ui-btn[data-variant="primary"]:disabled),
+:where(.ui-btn[data-variant="secondary"]:disabled),
+:where(.ui-btn[data-variant="danger-solid"]:disabled) { background: var(--color-disabled-bg); color: var(--color-disabled); opacity: 1; }
+
+/* :focus-visible */
+:where(.ui-btn:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }

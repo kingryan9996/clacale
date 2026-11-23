@@ -1,0 +1,83 @@
+/* =====================================================================
+   디자인 토큰 — 색상/반경/z-index의 유일한 출처
+   - 브랜드 색을 바꾸려면 --color-primary 하나만 수정하세요.
+     hover/active/soft/strong 은 primary 에서 자동 파생됩니다.
+   ===================================================================== */
+:root {
+  /* Brand */
+  --color-primary: #f26b21;
+  --color-primary-hover: color-mix(in srgb, var(--color-primary) 88%, black);
+  --color-primary-active: color-mix(in srgb, var(--color-primary) 76%, black);
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 12%, white);
+  --color-primary-strong: color-mix(in srgb, var(--color-primary) 72%, black); /* 밝은 배경 위 텍스트용 */
+  --color-on-primary: #000000;
+
+  /* Semantic */
+  --color-danger: #dc2626;
+  --color-danger-hover: color-mix(in srgb, var(--color-danger) 88%, black);
+  --color-danger-active: color-mix(in srgb, var(--color-danger) 76%, black);
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 9%, white);
+  --color-danger-strong: color-mix(in srgb, var(--color-danger) 85%, black);
+  --color-on-danger: #ffffff;
+  --color-success: #10b981;
+  --color-success-soft: #d1fae5;
+  --color-success-strong: #047857;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef3c7;
+  --color-warning-strong: #b45309;
+  --color-info: #3b82f6;
+  --color-info-soft: #dbeafe;
+  --color-info-strong: #1d4ed8;
+
+  /* Neutral */
+  --color-bg: #f3f4f2;
+  --color-surface: #ffffff;
+  --color-fill: #eef0ee; /* 보조 버튼/막대 트랙 */
+  --color-border: #c9cec9;
+  --color-border-subtle: rgb(0 0 0 / 0.08);
+  --color-text: #171717;
+  --color-text-muted: rgb(0 0 0 / 0.6);
+  --color-text-subtle: rgb(0 0 0 / 0.45);
+  --color-text-faint: rgb(0 0 0 / 0.3);
+  --color-disabled: rgb(0 0 0 / 0.4);
+  --color-disabled-bg: var(--color-fill);
+  --color-overlay: rgb(0 0 0 / 0.45);
+
+  /* Domain: 요일 / 혼잡도 신호등 */
+  --color-sun: #f43f5e;
+  --color-sat: #3b82f6;
+  --color-crowd-low: var(--color-success);
+  --color-crowd-mid: var(--color-warning);
+  --color-crowd-high: #f43f5e;
+
+  /* Third-party brand */
+  --color-kakao: #fee500;
+  --color-on-kakao: #191919;
+
+  /* Radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-sheet: 24px;
+  --radius-full: 999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.2);
+  --shadow-lg: 0 10px 30px rgb(0 0 0 / 0.2);
+  --shadow-sheet: 0 -10px 30px rgb(0 0 0 / 0.2);
+
+  /* Z-index */
+  --z-base: 1;
+  --z-dropdown: 20;
+  --z-fab: 20;
+  --z-sheet: 30;
+  --z-dialog: 5; /* 시트 내부 스택 기준 */
+  --z-dialog-raised: 6;
+  --z-dialog-top: 7;
+
+  /* Layout */
+  --container-max: 448px;
+}

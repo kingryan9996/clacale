@@ -1,0 +1,8 @@
+.ui-dialog { position: absolute; inset: 0; z-index: var(--z-dialog); display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--color-overlay); }
+.ui-dialog[data-level="raised"] { z-index: var(--z-dialog-raised); }
+.ui-dialog[data-level="top"] { z-index: var(--z-dialog-top); }
+.ui-dialog__card { box-sizing: border-box; width: 100%; max-width: 320px; padding: 20px; border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.ui-dialog__title { margin: 0 0 8px; font-size: 17px; line-height: 1.4; }
+.ui-dialog__actions { display: flex; gap: 8px; margin-top: 16px; }
+.ui-dialog__actions > * { flex: 1; }
+.ui-dialog__text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--color-text-muted); }

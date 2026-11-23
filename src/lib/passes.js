@@ -1,9 +1,6 @@
-import { addDays, dayDiff, fmtYMD, fmtYMDRange, todayKey } from "./dates";
-import { occursOn } from "./events";
-
-export const PERIODS = [{ days: 30, label: "1개월" }, { days: 90, label: "3개월" }, { days: 180, label: "6개월" }, { days: 365, label: "1년" }];
-
-export const COUNTS = [5, 10, 30];
+import { PERIODS } from "@/constants/passes";
+import { addDays, dayDiff, fmtDate, todayKey } from "@/lib/dates";
+import { occursOn } from "@/lib/events";
 
 export const passTitle = (p) => (p.kind === "period" ? `기간권 ${PERIODS.find((x) => x.days === p.days)?.label ?? `${p.days}일`}` : `횟수권 ${p.total}회`);
 
@@ -52,12 +49,11 @@ export const endDate = (x) => (x.kind === "period" ? x.expires : x.remaining <= 
 
 const passState = (x) => (x.start == null ? "waiting" : x.kind === "period" ? (x.expires < todayKey ? "expired" : "active") : (x.remaining <= 0 || (x.expires != null && x.expires < todayKey) ? "expired" : "active"));
 
-export const VALIDS = [{ days: 180, label: "6개월" }, { days: 365, label: "1년" }]; // 횟수권 유효기간
 
 export const passLine = (x, sk) => {
   if (sk === "waiting") return `사용대기 중${x.kind === "count" ? ` · 총 ${x.total}회` : ""}`;
-  const range = x.expires ? fmtYMDRange(x.start, x.expires) : fmtYMD(x.start);
-  if (sk === "expired") return x.kind === "period" ? `${range} · 만료` : `${x.expires ? `${range} · ` : ""}남은\u00A0횟수\u00A0${x.remaining}/${x.total} · ${x.remaining <= 0 ? "소진" : "기간 만료"} ${fmtYMD(endDate(x))}`;
+  const range = x.expires ? `${fmtDate(x.start)} ~ ${fmtDate(x.expires)}` : fmtDate(x.start);
+  if (sk === "expired") return x.kind === "period" ? `${range} · 만료` : `${x.expires ? `${range} · ` : ""}남은\u00A0횟수\u00A0${x.remaining}/${x.total} · ${x.remaining <= 0 ? "소진" : "기간 만료"} ${fmtDate(endDate(x))}`;
   return x.kind === "period" ? range : `${x.expires ? `${range} · ` : ""}남은\u00A0횟수\u00A0${x.remaining}/${x.total}`;
 };
 

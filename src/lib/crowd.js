@@ -1,8 +1,10 @@
-import { BRANDS, CUSTOM } from "./constants";
-import { pad } from "./dates";
+import { CROWD_LEVELS } from "@/constants/crowd";
+import { BRANDS, CUSTOM } from "@/constants/brands";
+import { MAX_CAPACITY } from "@/constants/gyms";
+import { pad } from "@/lib/dates";
 
 /* ---------- 혼잡도 (gym_daily_stats: date, gym_id, time_slot, visit_count, max_capacity) ---------- */
-export const MAX_CAPACITY = 100; // 암장 기본 최대 권장 인원
+export { MAX_CAPACITY };
 
 export const gymIdOf = (e) => { const br = e.brand === "custom" ? CUSTOM : BRANDS.find((b) => b.id === e.brand); const branch = e.place.replace(br?.name ?? "", "").trim(); return branch ? `${e.brand}:${branch}` : e.brand; };
 
@@ -14,7 +16,5 @@ export const sampleVisits = (date, gym, slot) => { let h = 0; for (const c of `$
 
 export const crowdLevel = (v, max = MAX_CAPACITY) => {
   const pct = (v / max) * 100;
-  if (pct < 50) return { label: "여유", color: "#10B981", cls: "bg-emerald-500" };
-  if (pct < 80) return { label: "보통", color: "#F59E0B", cls: "bg-amber-500" };
-  return { label: "혼잡", color: "#F43F5E", cls: "bg-rose-500" };
+  return pct < 50 ? CROWD_LEVELS.low : pct < 80 ? CROWD_LEVELS.mid : CROWD_LEVELS.high;
 };

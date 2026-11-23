@@ -1,0 +1,51 @@
+.mp-box { padding: 14px; border-radius: var(--radius-lg); background: var(--color-bg); }
+.mp-section-title { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+.mp-muted { margin: 0; font-size: 14px; color: var(--color-text-subtle); }
+.mp-error { margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-danger-strong); }
+.mp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mp-stack { display: flex; flex-direction: column; gap: 8px; }
+.mp-stack--top { margin-top: 8px; }
+.mp-heart { color: var(--color-primary); fill: var(--color-primary); }
+
+.mp-profile { display: flex; align-items: center; gap: 12px; }
+.mp-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: var(--radius-full); background: var(--color-primary); color: var(--color-on-primary); font-size: 18px; font-weight: 800; }
+.mp-profile__text { min-width: 0; }
+.mp-profile__name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.mp-profile__sub { display: block; font-size: 13px; color: var(--color-text-subtle); }
+
+.mp-passes { display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; }
+.mp-kind-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); }
+.mp-accordion { justify-content: space-between; }
+.mp-accordion__chevron { transition: transform 0.15s; }
+.mp-accordion__chevron[data-open] { transform: rotate(180deg); }
+.mp-add-pass { margin-top: 10px; }
+
+/* 이용권 카드 (컴팩트 2행) */
+.mp-pass { padding: 10px 12px; border-radius: var(--radius-md); background: var(--color-bg); }
+.mp-pass[data-status="expired"] { opacity: 0.5; }
+.mp-pass__row { display: flex; align-items: center; gap: 8px; }
+.mp-pass__row--2 { justify-content: space-between; margin-top: 6px; }
+.mp-pass__name { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
+.mp-pass__ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-pass__hist { flex-shrink: 0; font-size: 12px; color: var(--color-text-subtle); }
+.mp-pass__line { min-width: 0; font-size: 12.5px; line-height: 1.35; word-break: keep-all; color: var(--color-text-muted); }
+.mp-pass__actions { display: flex; flex-shrink: 0; gap: 6px; }
+.mp-pass__pause { margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--color-warning-strong); }
+.mp-mini { padding: 4px 10px; font-size: 12px; border-radius: var(--radius-sm); }
+
+.mp-badge { flex-shrink: 0; padding: 1px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; }
+.mp-badge[data-tone="success"] { background: var(--color-success-soft); color: var(--color-success-strong); }
+.mp-badge[data-tone="info"] { background: var(--color-info-soft); color: var(--color-info-strong); }
+.mp-badge[data-tone="warning"] { background: var(--color-warning-soft); color: var(--color-warning-strong); }
+.mp-badge[data-tone="muted"] { background: var(--color-fill); color: var(--color-text-muted); }
+
+.mp-gym { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; }
+.mp-gym-add { display: flex; gap: 8px; }
+.mp-gym-add .ui-input { flex: 1; }
+.mp-gym-add .ui-btn { flex-shrink: 0; white-space: nowrap; }
+
+.mp-dialog-note { margin-top: 12px; font-size: 13px; }
+.mp-stepper-wrap { margin-top: 12px; }
+.mp-stepper-label { margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
+.mp-stepper { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.mp-stepper__value { min-width: 56px; text-align: center; font-size: 20px; font-weight: 700; }

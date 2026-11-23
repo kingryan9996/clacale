@@ -1,50 +1,31 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { MAX_CAPACITY, crowdLevel, gymIdOf, midSlot, sampleVisits } from "./lib/crowd";
-import { addDays, keyOf, parseKey, refreshTodayKey, today, todayKey } from "./lib/dates";
-import { occurrence, occursOn } from "./lib/events";
-import { settleCountPasses, shortenPause } from "./lib/passes";
-import { MOCK_PASSES, seed } from "./lib/seed";
-import { store } from "./lib/store";
-import Calendar from './pages/Calendar';
-import Board from './pages/Board';
-import MyPage from './pages/MyPage';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Container } from "@/components/ui";
+import { TABS } from "@/constants/nav";
+import { MAX_CAPACITY, crowdLevel, gymIdOf, midSlot, sampleVisits } from "@/lib/crowd";
+import { addDays, keyOf, parseKey, refreshTodayKey, today, todayKey } from "@/lib/dates";
+import { occurrence, occursOn } from "@/lib/events";
+import { settleCountPasses, shortenPause } from "@/lib/passes";
+import { MOCK_PASSES, seed } from "@/lib/seed";
+import { store } from "@/lib/store";
+import Board from "@/pages/Board";
+import Calendar from "@/pages/Calendar";
+import Login from "@/pages/Login";
+import MyPage from "@/pages/MyPage";
+import "@/App.css";
 
-const TABS = [
-  { to: '/', label: '캘린더' },
-  { to: '/board', label: '자유게시판' },
-  { to: '/mypage', label: '마이페이지' },
-];
-
-/* ---------- 앱 데이터 상태 허브: 일정 / 이용권 / 찜 / 커스텀 암장 (세션은 AuthContext에서) ---------- */
-function AppRoutes() {
-  const { session, signOut } = useAuth(); // 전역에서 세션 바로 가져오기!
-
-  // if (!session) {
-  //   return <Login />;
-  // }
-
+/* ---------- 전역 상태 허브: 세션 / 일정 / 이용권 / 찜 / 커스텀 암장 + localStorage 동기화 + 라우팅 ---------- */
+export default function App() {
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [sel, setSel] = useState(todayKey);
+  const [session, setSession] = useState(() => store.get("clacale:session", null)); // null | {type:"guest"} | {type:"user", ...}
   const uid = session?.type === "user" ? session.id : "guest";
   const [events, setEvents] = useState(() => store.get(`clacale:events:${uid}`, seed));
   const commit = (fn) => setEvents((p) => { const n = fn(p); store.set(`clacale:events:${uid}`, n); return n; });
   const [passes, setPasses] = useState(() => store.get(`clacale:passes:${uid}`, MOCK_PASSES));
   const [customGyms, setCustomGyms] = useState(() => store.get(`clacale:gyms:${uid}`, []));
-  const [favs, setFavs] = useState(() => store.get(`clacale:favs:${uid}`, [])); // 즐겨찾기한 센터(브랜드) 키: "b:브랜드id"
   const savePasses = (fn) => setPasses((p) => { const n = fn(p); store.set(`clacale:passes:${uid}`, n); return n; });
   const saveGyms = (fn) => setCustomGyms((p) => { const n = fn(p); store.set(`clacale:gyms:${uid}`, n); return n; });
-  const toggleFav = (key) => setFavs((p) => { const n = p.includes(key) ? p.filter((k) => k !== key) : [...p, key]; store.set(`clacale:favs:${uid}`, n); return n; });
-
-  // 세션(계정)이 바뀌면 해당 계정의 데이터를 다시 불러옴
-  useEffect(() => {
-    setEvents(store.get(`clacale:events:${uid}`, seed));
-    setPasses(store.get(`clacale:passes:${uid}`, MOCK_PASSES));
-    setCustomGyms(store.get(`clacale:gyms:${uid}`, []));
-    setFavs(store.get(`clacale:favs:${uid}`, []));
-  }, [uid]);
-
   // 일정이 정지 기간과 겹칠 때: 정지 종료일을 일정 전날로 단축
   const adjustPasses = (ids, date) => savePasses((l) => l.map((x) => (ids.includes(x.id) ? shortenPause(x, addDays(date, -1)) : x)));
   // 정지 기간(from~to)과 겹치는 해당 브랜드 일정 삭제: 단일 일정은 삭제, 반복 일정은 그 기간의 발생분만 제외
@@ -54,7 +35,6 @@ function AppRoutes() {
     if (!hits.length) return [e];
     return e.repeat === "none" ? [] : [{ ...e, ex: [...(e.ex ?? []), ...hits] }];
   }));
-
   // 자정이 지나면 오늘 날짜 갱신 -> 지난 일정 감지해 횟수권 자동 차감
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -66,7 +46,8 @@ function AppRoutes() {
     const res = settleCountPasses(passes, events, todayKey);
     if (res) savePasses(() => res);
   }, [session, passes, events, tick]);
-
+  const [favs, setFavs] = useState(() => store.get(`clacale:favs:${uid}`, [])); // 즐겨찾기한 센터(브랜드) 키: "b:브랜드id"
+  const toggleFav = (key) => setFavs((p) => { const n = p.includes(key) ? p.filter((k) => k !== key) : [...p, key]; store.set(`clacale:favs:${uid}`, n); return n; });
   // 삭제 범위: one = 이 일정만(예외 날짜 기록), after = 이 날짜 이후 모두(종료일 기록, 과거 유지), all = 시리즈 전체
   const deleteEvent = (ev, scope) => commit((p) => p.flatMap((e) => {
     if (e.id !== ev.id) return [e];
@@ -79,7 +60,6 @@ function AppRoutes() {
     }
     return [{ ...e, ex: [...(e.ex ?? []), k] }];
   }));
-  const addEvent = (ev) => commit((p) => [...p, ev]);
 
   // 일정(발생분) 하나의 혼잡도: 같은 날짜·암장·time_slot의 방문 예정 인원 = 집계값 + 내 일정
   const statOf = (o) => {
@@ -88,43 +68,59 @@ function AppRoutes() {
     const visit = sampleVisits(date, gym, slot) + own;
     return { date, gym_id: gym, time_slot: slot, visit_count: visit, max_capacity: MAX_CAPACITY, pct: (visit / MAX_CAPACITY) * 100, level: crowdLevel(visit) };
   };
+  // 로그인/게스트 진입: 계정별 일정·즐겨찾기를 불러오고, 첫 로그인 때는 게스트 일정을 이어받음
+  const signIn = (sess) => {
+    const k = sess.type === "user" ? sess.id : "guest";
+    let evs = store.get(`clacale:events:${k}`, null);
+    if (evs === null) { evs = sess.type === "user" ? store.get("clacale:events:guest", seed) : seed; store.set(`clacale:events:${k}`, evs); }
+    store.set("clacale:session", sess);
+    const mig = (name, d) => { let v = store.get(`clacale:${name}:${k}`, null); if (v === null) { v = sess.type === "user" ? store.get(`clacale:${name}:guest`, d) : d; store.set(`clacale:${name}:${k}`, v); } return v; };
+    setEvents(evs); setFavs(store.get(`clacale:favs:${k}`, [])); setPasses(mig("passes", MOCK_PASSES)); setCustomGyms(mig("gyms", [])); setSession(sess);
+  };
+  const signOut = () => { store.set("clacale:session", null); setSession(null); };
+  const addEvent = (ev) => commit((p) => [...p, ev]);
+
+  // 세션이 없으면 로그인 페이지
+  if (!session) return <Login onSignIn={signIn} />;
 
   return (
     <BrowserRouter>
-      {/* 전역 페이지 레이아웃: 모든 라우트의 바깥 여백은 여기서만 지정 (px-4 / pt-4 / pb-20 + safe-area).
-          페이지 컴포넌트는 바깥 패딩 없이 height: 100%로 이 영역을 채움.
-          모달·전체화면 뷰는 components/Overlay(포털)로 렌더 → 이 패딩의 영향을 받지 않음 */}
-      <main className="h-full overflow-y-auto px-4 pt-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
-        <Routes>
-          <Route path="/" element={
-            <Calendar ym={ym} setYm={setYm} sel={sel} setSel={setSel} events={events} addEvent={addEvent} deleteEvent={deleteEvent} statOf={statOf}
-              favs={favs} toggleFav={toggleFav} passes={passes} customGyms={customGyms} adjustPasses={adjustPasses} signOut={signOut} />} />
-          <Route path="/board" element={<Board />} />
-          <Route path="/mypage" element={
-            <MyPage passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
-              onToggleFav={toggleFav} events={events} onDeleteRange={deleteBrandRange} />} />
-        </Routes>
-      </main>
-
-      {/* 모바일 하단 탭바 */}
-      <nav aria-label="주요 메뉴" className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-3 border-t border-black/10 bg-white"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {TABS.map(({ to, label }) => (
-          <NavLink key={to} to={to} end={to === '/'}
-            className={({ isActive }) => `min-w-0 flex items-center justify-center h-14 text-sm text-center whitespace-nowrap ${isActive ? 'font-bold text-black' : 'font-medium text-black/45'}`}>
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+      <Container height="screen" className="app-shell">
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={
+              <Calendar session={session} ym={ym} setYm={setYm} sel={sel} setSel={setSel} events={events} addEvent={addEvent} deleteEvent={deleteEvent} statOf={statOf}
+                favs={favs} toggleFav={toggleFav} passes={passes} customGyms={customGyms} adjustPasses={adjustPasses} signOut={signOut} />} />
+            <Route path="/board" element={<Board session={session} />} />
+            <Route path="/mypage" element={
+              <MyPageRoute session={session} passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
+                onToggleFav={toggleFav} events={events} onDeleteRange={deleteBrandRange} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <TabBar />
+      </Container>
     </BrowserRouter>
   );
 }
 
-// 최상단 메인 App 컴포넌트
-export default function App() {
+
+/* ---------- 마이페이지 라우트: 시트를 닫으면 캘린더로 돌아감 ---------- */
+function MyPageRoute(props) {
+  const navigate = useNavigate();
+  return <MyPage {...props} onClose={() => navigate("/")} />;
+}
+
+/* ---------- 하단 네비게이션 바 ---------- */
+function TabBar() {
+  const { pathname } = useLocation();
   return (
-    <AuthProvider>
-        <AppRoutes />
-    </AuthProvider>
+    <nav aria-label="하단 메뉴" className="tabbar">
+      {TABS.map(({ to, label, icon: Icon }) => (
+        <Link key={to} to={to} className="tabbar__item" aria-current={pathname === to ? "page" : undefined}>
+          <Icon size={20} />{label}
+        </Link>
+      ))}
+    </nav>
   );
 }

@@ -1,0 +1,62 @@
+.cal { display: grid; grid-template-rows: minmax(0, 64fr) minmax(0, 36fr); overflow: hidden; user-select: none; } /* 캘린더 : 리스트 ≈ 2 : 1 */
+.cal__top { display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--color-surface); }
+.cal__header { position: relative; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 16px 16px 8px; }
+.cal__nav { display: flex; align-items: center; gap: 4px; }
+.cal__ym { gap: 4px; padding: 4px 6px; border-radius: var(--radius-sm); font-size: 20px; font-weight: 700; }
+.cal__ym-text { font-variant-numeric: tabular-nums; }
+.cal__ym-month { display: inline-block; min-width: 2.2ch; text-align: left; }
+.cal__ym-chevron { transition: transform 0.15s; }
+.cal__ym-chevron[data-open] { transform: rotate(180deg); }
+.cal__ym-pop { position: absolute; top: 56px; left: 12px; right: 12px; z-index: var(--z-dropdown); padding: 12px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.cal__ym-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal__ym-pop-year { font-weight: 600; }
+.cal__ym-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+
+.cal__month { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 0 8px; }
+.cal__dow-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); flex-shrink: 0; padding: 4px 0; text-align: center; font-size: 12px; font-weight: 500; color: var(--color-text-subtle); }
+.cal__dow[data-dow="0"], .cal__day[data-dow="0"] { color: var(--color-sun); }
+.cal__dow[data-dow="6"], .cal__day[data-dow="6"] { color: var(--color-sat); }
+.cal__grid { display: grid; flex: 1; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); min-height: 0; }
+
+.cal__cell { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; height: 100%; min-height: 0; overflow: hidden; padding: 4px 2px 0; border-radius: var(--radius-md); }
+.cal__cell[aria-pressed="true"] { background: var(--color-primary-soft); box-shadow: inset 0 0 0 2px var(--color-primary); }
+.cal__day {
+  position: relative; z-index: var(--z-base); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 24px; height: 24px; border: 1px solid transparent; border-radius: var(--radius-full);
+  font-size: 13px; font-weight: 400; color: var(--color-text);
+}
+.cal__day[data-today] { border-color: var(--color-primary); font-weight: 700; color: var(--color-primary-strong); }
+.cal__day[data-sel] { border-color: transparent; background: var(--color-primary); color: var(--color-on-primary); font-weight: 700; }
+.cal__chip {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0; width: 100%; padding: 0 4px; border-radius: var(--radius-xs);
+  font-size: 9px; font-weight: 600; line-height: 15px;
+  background: color-mix(in srgb, var(--brand) 15%, transparent); color: var(--brand);
+}
+.cal__chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal__chip-more { flex-shrink: 0; }
+
+.cal__bottom { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-top: 1px solid var(--color-border-subtle); }
+.cal__sel-title { flex-shrink: 0; margin: 0; padding: 8px 16px 6px; font-size: 15px; font-weight: 700; }
+.cal__list-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 56px; }
+.cal__empty { margin: 0; padding: 24px 0; text-align: center; font-size: 14px; color: var(--color-text-subtle); background: var(--color-surface); border-radius: var(--radius-lg); }
+.cal__list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.cal__card { display: flex; align-items: stretch; justify-content: flex-start; width: 100%; overflow: hidden; text-align: left; font-weight: 400; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.cal__card-bar { flex-shrink: 0; width: 6px; background: var(--brand); }
+.cal__card-main { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; padding: 14px; }
+.cal__card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal__card-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.cal-meta { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; color: var(--color-text-muted); }
+.cal-meta svg { flex-shrink: 0; margin-top: 2px; }
+
+.cal__fab { position: absolute; right: 16px; bottom: 12px; z-index: var(--z-fab); }
+.cal__today { position: absolute; left: 16px; bottom: 12px; z-index: var(--z-fab); height: 32px; padding: 0 14px; font-size: 13px; box-shadow: var(--shadow-md); }
+
+/* 메뉴 / 통계 / 로그인 유도 시트 */
+.cal-menu-item { justify-content: flex-start; }
+.cal-sheet-note { margin: 0 0 8px; font-size: 14px; color: var(--color-text-muted); }
+.cal-sheet-text { margin: 0; font-size: 15px; line-height: 1.5; }
+.cal-stats-title { font-size: 20px; font-weight: 700; }
+.cal-stats-row { font-size: 14px; }
+.cal-stats-row__head { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.cal-stats-bar { height: 8px; border-radius: var(--radius-full); background: var(--color-fill); }
+.cal-stats-bar__fill { width: var(--ratio); height: 100%; border-radius: var(--radius-full); background: var(--color-primary); }

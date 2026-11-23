@@ -1,0 +1,18 @@
+.board { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--color-bg); color: var(--color-text); }
+.board__header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 16px 16px 8px; }
+.board__title { margin: 0; font-size: 20px; font-weight: 800; }
+.board__list { display: flex; flex: 1; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding: 0 16px 16px; }
+.board__empty { margin: 0; padding: 24px 0; text-align: center; font-size: 14px; color: var(--color-text-subtle); background: var(--color-surface); border-radius: var(--radius-lg); }
+.board__post { overflow: hidden; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.board__post-btn { display: block; width: 100%; padding: 14px; text-align: left; }
+.board__post-title { display: block; font-weight: 700; }
+.board__post-meta { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--color-text-subtle); }
+.board__post-body {
+  display: -webkit-box; margin-top: 8px; overflow: hidden;
+  font-size: 14px; font-weight: 400; line-height: 1.5; white-space: pre-wrap; color: var(--color-text-muted);
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.board__post-body[data-open] { display: block; overflow: visible; }
+.board__post-actions { display: flex; justify-content: flex-end; padding: 0 14px 12px; }
+.board__submit { padding: 4px; font-size: 15px; font-weight: 700; color: var(--color-primary-strong); }
+.board__hint { margin: 0; font-size: 12px; color: var(--color-text-subtle); }

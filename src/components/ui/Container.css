@@ -1,0 +1,13 @@
+.ui-container {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.ui-container[data-height="screen"] { height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+.ui-container[data-height="fill"] { height: 100%; }
+.ui-container[data-padded] { padding: 24px; }
+.ui-container[data-center] { display: flex; flex-direction: column; justify-content: center; gap: 12px; overflow-y: auto; }
