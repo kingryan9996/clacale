@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bell, Car, Clock, MapPin, Repeat, StickyNote, Trash2, Users, X } from "lucide-react";
-import { Button, Dialog, Sheet, SheetHeader } from "@/components/ui";
+import { Button, ConfirmSheet, Sheet, SheetHeader } from "@/components/ui";
 import { brandOf } from "@/constants/brands";
 import { DELETE_SCOPES, REPEATS } from "@/constants/schedule";
 import { alertLabel, fmtRange, t12 } from "@/lib/dates";
@@ -40,8 +40,8 @@ export default function DetailSheet({ ev, st, onClose, onDelete }) {
           </div>
 
           {step === "scope" && (
-            <Dialog label="반복 일정 삭제 범위" title="반복 일정 삭제" actions={<>
-              <Button variant="secondary" onClick={() => setStep(null)}>취소</Button>
+            <ConfirmSheet role="dialog" label="반복 일정 삭제 범위" title="반복 일정 삭제" onClose={() => setStep(null)} actions={(c) => <>
+              <Button variant="secondary" onClick={c}>취소</Button>
               <Button variant="primary" onClick={() => setStep("confirm")}>다음</Button>
             </>}>
               {DELETE_SCOPES.map((o) => (
@@ -50,15 +50,15 @@ export default function DetailSheet({ ev, st, onClose, onDelete }) {
                   {o.label}
                 </Button>
               ))}
-            </Dialog>
+            </ConfirmSheet>
           )}
           {step === "confirm" && (
-            <Dialog role="alertdialog" label="삭제 확인" title="일정을 삭제하시겠습니까?" actions={<>
-              <Button variant="secondary" onClick={() => setStep(null)}>취소</Button>
+            <ConfirmSheet label="삭제 확인" title="일정을 삭제하시겠습니까?" onClose={() => setStep(null)} actions={(c) => <>
+              <Button variant="secondary" onClick={c}>취소</Button>
               <Button variant="danger-solid" onClick={() => { onDelete(ev, repeating ? scope : "all"); close(); }}>삭제</Button>
             </>}>
-              {repeating && <p className="ui-dialog__text">{DELETE_SCOPES.find((o) => o.id === scope).label}</p>}
-            </Dialog>
+              {repeating && <p className="ui-sheet__text">{DELETE_SCOPES.find((o) => o.id === scope).label}</p>}
+            </ConfirmSheet>
           )}
         </>
       )}

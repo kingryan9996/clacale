@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, Clock, Heart, MapPin, Plus, Repeat, X } from "lucide-react";
-import { Button, Container, Dialog, Field, Input } from "@/components/ui";
+import { Button, ConfirmSheet, Container, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { BRANDS, brandOf } from "@/constants/brands";
 import { COUNTS, PASS_ORDER, PASS_STATUS, PAUSE_MAX_DAYS, PERIODS, VALIDS } from "@/constants/passes";
@@ -11,7 +11,7 @@ import "@/pages/MyPage.css";
 /* ---------- 마이페이지: 프로필 / 내 이용권 / 찜 센터 / 커스텀 암장 ---------- */
 export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange }) {
   const { session, signOut } = useAuth();
-  const [view, setView] = useState("main"); // main | addPass
+  const [adding, setAdding] = useState(false); // 이용권 추가 시트
   const [pausing, setPausing] = useState(null); // 정지 설정 중인 이용권 id
   const [gymName, setGymName] = useState("");
   const [pb, setPb] = useState(BRANDS[0].id);
@@ -42,14 +42,13 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
   const endedList = passes.filter((x) => stMap[x.id] === "expired").sort((a, b) => endDate(b).localeCompare(endDate(a)) || b.id - a.id); // 종료일이 오늘에 가까운 순
   const pto = addDays(pfrom, pdays - 1);
   const overlaps = pausingPass ? brandOccurrences(events, pausingPass.brand, pfrom, pto) : [];
-  const openAdd = () => { setPstart(keyOf(new Date())); setKind("period"); setOpt(30); setValid(365); setView("addPass"); }; // 열 때마다 시작일 = 오늘
+  const openAdd = () => { setPstart(keyOf(new Date())); setKind("period"); setOpt(30); setValid(365); setAdding(true); }; // 열 때마다 시작일 = 오늘
   const addPass = () => {
     if (blocked) return;
     const base = { id: Date.now(), brand: pb, kind, pause: null, start: pstart };
     savePasses((l) => [...l, kind === "period"
       ? { ...base, days: opt, expires: addDays(pstart, opt - 1) }
       : { ...base, total: opt, remaining: opt, validDays: valid, expires: addDays(pstart, valid - 1) }]); // 횟수권도 등록일부터 유효기간
-    setView("main");
   };
   // 사용 시작일 지정: 기간권은 이 날짜 기준으로 만료일 계산, 이용중으로 전환 (기본값: 같은 종류 이용중 이용권이 끝난 다음 날, 없으면 오늘)
   const openActivate = (x) => {
@@ -105,164 +104,193 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
     );
   };
 
+  const closeBtn = (close) => <Button variant="ghost" size="icon" onClick={close} aria-label="닫기"><X size={22} /></Button>;
   return (
     <Container height="fill" className="mp">
       <header className="mp__header">
-        {view === "addPass" ? <Button variant="ghost" size="icon" onClick={() => setView("main")} aria-label="뒤로"><ChevronLeft size={22} /></Button> : <span className="mp__spacer" />}
-        <h1 className="mp__title">{view === "main" ? "마이페이지" : "이용권 추가"}</h1>
+        <span className="mp__spacer" />
+        <h1 className="mp__title">마이페이지</h1>
         <span className="mp__spacer" />
       </header>
 
-          {view === "addPass" ? (
-            <div className="mp__body" data-gap="16">
-              <Field icon={MapPin} label="브랜드 (지점 구분 없이 브랜드 단위로 관리)">
-                <Input as="select" aria-label="이용권 브랜드" value={pb} onChange={(e) => setPb(e.target.value)}>{BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Input>
-              </Field>
-              <Field icon={Repeat} label="종류">
-                <div className="mp-chips">
-                  <Button {...chip(kind === "period")} onClick={() => { setKind("period"); setOpt(30); }}>기간권</Button>
-                  <Button {...chip(kind === "count")} onClick={() => { setKind("count"); setOpt(10); setValid(365); }}>횟수권</Button>
+      <div className="mp__body" data-gap="20">
+        <div className="mp-box mp-profile">
+          <span className="mp-avatar">{guest ? "G" : (session.name || "?").slice(0, 1).toUpperCase()}</span>
+          <span className="mp-profile__text">
+            <span className="mp-profile__name">{guest ? "비회원(Guest)" : session.name}</span>
+            <span className="mp-profile__sub">{guest ? "이 기기에만 저장돼요" : `${session.provider} 로그인`}</span>
+          </span>
+        </div>
+
+        <section>
+          <h4 className="mp-section-title">내 이용권</h4>
+          {/* 이용권 전체 영역: 화면 높이의 60%를 넘으면 안에서 스크롤 */}
+          <div data-passes-scroll className="mp-passes">
+            {[["period", "기간권"], ["count", "횟수권"]].map(([kk, label]) => (
+              <div key={kk}>
+                <div className="mp-kind-title">{label}</div>
+                <div className="mp-stack">
+                  {liveList.filter((x) => x.kind === kk).length === 0 && <p className="mp-muted">등록된 {label}이 없어요.</p>}
+                  {liveList.filter((x) => x.kind === kk).map(renderPass)}
                 </div>
-              </Field>
-              <Field icon={Clock} label={kind === "period" ? "기간" : "횟수"}>
-                <div className="mp-chips">
-                  {kind === "period"
-                    ? PERIODS.map((o) => <Button key={o.days} {...chip(opt === o.days)} onClick={() => setOpt(o.days)}>{o.label} ({o.days}일)</Button>)
-                    : COUNTS.map((n) => <Button key={n} {...chip(opt === n)} onClick={() => { setOpt(n); setValid(n === 5 ? 180 : 365); }}>{n}회</Button>)}
-                </div>
-              </Field>
-              {kind === "count" && (
-                <Field icon={Clock} label="유효기간 (시작일부터)">
+              </div>
+            ))}
+            {endedList.length > 0 && (
+              <div>
+                <Button variant="secondary" size="md" fullWidth className="mp-accordion" aria-expanded={showEnded} onClick={() => setShowEnded((v) => !v)}>
+                  <span>소진된 이용권 ({endedList.length})</span>
+                  <ChevronDown size={18} className="mp-accordion__chevron" data-open={showEnded || undefined} />
+                </Button>
+                {showEnded && <div className="mp-stack mp-stack--top">{endedList.map(renderPass)}</div>}
+              </div>
+            )}
+          </div>
+          <Button variant="secondary" size="md" fullWidth className="mp-add-pass" onClick={openAdd}><Plus size={16} />이용권 추가</Button>
+        </section>
+
+        <section>
+          <h4 className="mp-section-title">찜한 센터</h4>
+          {favBrands.length === 0 ? <p className="mp-muted">장소 선택에서 센터에 하트를 누르면 여기에 모여요.</p> : (
+            <div className="mp-chips">
+              {favBrands.map((b) => (
+                <Button key={b.id} variant="secondary" size="sm" pill aria-label={`${b.name} 찜 해제`} onClick={() => onToggleFav(`b:${b.id}`)}>
+                  <Heart size={14} className="mp-heart" />{b.name}
+                </Button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h4 className="mp-section-title">내가 등록한 암장</h4>
+          <div className="mp-stack">
+            {customGyms.map((g) => (
+              <div key={g} className="mp-box mp-gym">
+                <span>{g}</span>
+                <Button variant="ghost" size="icon" aria-label={`${g} 삭제`} onClick={() => saveGyms((l) => l.filter((n) => n !== g))}><X size={16} /></Button>
+              </div>
+            ))}
+            <div className="mp-gym-add">
+              <Input aria-label="커스텀 암장 이름" placeholder="암장 이름" value={gymName} onChange={(e) => setGymName(e.target.value)} />
+              <Button variant="primary" size="md" onClick={() => { const n = gymName.trim(); if (n && !customGyms.includes(n)) saveGyms((l) => [...l, n]); setGymName(""); }}>추가</Button>
+            </div>
+          </div>
+        </section>
+
+        <Button variant="outline" size="lg" fullWidth onClick={signOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
+      </div>
+
+      {/* ---- 모든 모달/팝업은 공통 Sheet (하단 슬라이드업 · 풀 하이트) ---- */}
+      {adding && (
+        <Sheet label="이용권 추가" onClose={() => setAdding(false)}>
+          {(close) => (
+            <>
+              <SheetHeader left={closeBtn(close)} title="이용권 추가" />
+              <SheetBody>
+                <Field icon={MapPin} label="브랜드 (지점 구분 없이 브랜드 단위로 관리)">
+                  <Input as="select" aria-label="이용권 브랜드" value={pb} onChange={(e) => setPb(e.target.value)}>{BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Input>
+                </Field>
+                <Field icon={Repeat} label="종류">
                   <div className="mp-chips">
-                    {VALIDS.map((o) => <Button key={o.days} {...chip(valid === o.days)} onClick={() => setValid(o.days)}>{o.label} ({o.days}일)</Button>)}
+                    <Button {...chip(kind === "period")} onClick={() => { setKind("period"); setOpt(30); }}>기간권</Button>
+                    <Button {...chip(kind === "count")} onClick={() => { setKind("count"); setOpt(10); setValid(365); }}>횟수권</Button>
                   </div>
                 </Field>
-              )}
-              <Field icon={Clock} label="시작일">
-                <Input type="date" aria-label="이용권 시작일" value={pstart} onChange={(e) => e.target.value && setPstart(e.target.value)} />
-              </Field>
-              {blocked && <p role="alert" className="mp-error">{brandOf(pb).name} {passTitle(activeOfBrand)}이(가) 이용 중이라 같은 종류의 이용권은 등록할 수 없어요. 만료되거나 소진된 후에 등록할 수 있어요.</p>}
-              <Button variant="primary" size="lg" disabled={blocked} onClick={addPass}>이용권 추가</Button>
-            </div>
-          ) : (
-            <div className="mp__body" data-gap="20">
-              <div className="mp-box mp-profile">
-                <span className="mp-avatar">{guest ? "G" : (session.name || "?").slice(0, 1).toUpperCase()}</span>
-                <span className="mp-profile__text">
-                  <span className="mp-profile__name">{guest ? "비회원(Guest)" : session.name}</span>
-                  <span className="mp-profile__sub">{guest ? "이 기기에만 저장돼요" : `${session.provider} 로그인`}</span>
-                </span>
-              </div>
-
-              <section>
-                <h4 className="mp-section-title">내 이용권</h4>
-                {/* 이용권 전체 영역: 화면 높이의 60%를 넘으면 안에서 스크롤 */}
-                <div data-passes-scroll className="mp-passes">
-                  {[["period", "기간권"], ["count", "횟수권"]].map(([kk, label]) => (
-                    <div key={kk}>
-                      <div className="mp-kind-title">{label}</div>
-                      <div className="mp-stack">
-                        {liveList.filter((x) => x.kind === kk).length === 0 && <p className="mp-muted">등록된 {label}이 없어요.</p>}
-                        {liveList.filter((x) => x.kind === kk).map(renderPass)}
-                      </div>
-                    </div>
-                  ))}
-                  {endedList.length > 0 && (
-                    <div>
-                      <Button variant="secondary" size="md" fullWidth className="mp-accordion" aria-expanded={showEnded} onClick={() => setShowEnded((v) => !v)}>
-                        <span>소진된 이용권 ({endedList.length})</span>
-                        <ChevronDown size={18} className="mp-accordion__chevron" data-open={showEnded || undefined} />
-                      </Button>
-                      {showEnded && <div className="mp-stack mp-stack--top">{endedList.map(renderPass)}</div>}
-                    </div>
-                  )}
-                </div>
-                <Button variant="secondary" size="md" fullWidth className="mp-add-pass" onClick={openAdd}><Plus size={16} />이용권 추가</Button>
-              </section>
-
-              <section>
-                <h4 className="mp-section-title">찜한 센터</h4>
-                {favBrands.length === 0 ? <p className="mp-muted">장소 선택에서 센터에 하트를 누르면 여기에 모여요.</p> : (
+                <Field icon={Clock} label={kind === "period" ? "기간" : "횟수"}>
                   <div className="mp-chips">
-                    {favBrands.map((b) => (
-                      <Button key={b.id} variant="secondary" size="sm" pill aria-label={`${b.name} 찜 해제`} onClick={() => onToggleFav(`b:${b.id}`)}>
-                        <Heart size={14} className="mp-heart" />{b.name}
-                      </Button>
-                    ))}
+                    {kind === "period"
+                      ? PERIODS.map((o) => <Button key={o.days} {...chip(opt === o.days)} onClick={() => setOpt(o.days)}>{o.label} ({o.days}일)</Button>)
+                      : COUNTS.map((n) => <Button key={n} {...chip(opt === n)} onClick={() => { setOpt(n); setValid(n === 5 ? 180 : 365); }}>{n}회</Button>)}
                   </div>
-                )}
-              </section>
-
-              <section>
-                <h4 className="mp-section-title">내가 등록한 암장</h4>
-                <div className="mp-stack">
-                  {customGyms.map((g) => (
-                    <div key={g} className="mp-box mp-gym">
-                      <span>{g}</span>
-                      <Button variant="ghost" size="icon" aria-label={`${g} 삭제`} onClick={() => saveGyms((l) => l.filter((n) => n !== g))}><X size={16} /></Button>
+                </Field>
+                {kind === "count" && (
+                  <Field icon={Clock} label="유효기간 (시작일부터)">
+                    <div className="mp-chips">
+                      {VALIDS.map((o) => <Button key={o.days} {...chip(valid === o.days)} onClick={() => setValid(o.days)}>{o.label} ({o.days}일)</Button>)}
                     </div>
-                  ))}
-                  <div className="mp-gym-add">
-                    <Input aria-label="커스텀 암장 이름" placeholder="암장 이름" value={gymName} onChange={(e) => setGymName(e.target.value)} />
-                    <Button variant="primary" size="md" onClick={() => { const n = gymName.trim(); if (n && !customGyms.includes(n)) saveGyms((l) => [...l, n]); setGymName(""); }}>추가</Button>
+                  </Field>
+                )}
+                <Field icon={Clock} label="시작일">
+                  <Input type="date" aria-label="이용권 시작일" value={pstart} onChange={(e) => e.target.value && setPstart(e.target.value)} />
+                </Field>
+                {blocked && <p role="alert" className="mp-error">{brandOf(pb).name} {passTitle(activeOfBrand)}이(가) 이용 중이라 같은 종류의 이용권은 등록할 수 없어요. 만료되거나 소진된 후에 등록할 수 있어요.</p>}
+              </SheetBody>
+              <div className="ui-sheet__footer">
+                <Button variant="primary" size="lg" disabled={blocked} onClick={() => { addPass(); close(); }}>이용권 추가</Button>
+              </div>
+            </>
+          )}
+        </Sheet>
+      )}
+      {activatingPass && (
+        <Sheet label="사용 시작일 지정" onClose={() => setActivating(null)}>
+          {(close) => (
+            <>
+              <SheetHeader left={closeBtn(close)} title="사용 시작일 지정" />
+              <SheetBody gap={12}>
+                <p className="mp-sheet-sub">{brandOf(activatingPass.brand).name} {passTitle(activatingPass)}</p>
+                <Input type="date" aria-label="사용 시작일" value={astart} onChange={(e) => e.target.value && setAstart(e.target.value)} />
+                <p className="ui-sheet__text">
+                  {activatingPass.kind === "period" ? `만료일 ${fmtDate(addDays(astart, activatingPass.days - 1))} (${activatingPass.days}일 이용)` : `${fmtDate(astart)}부터 이용 · 총 ${activatingPass.total}회`}
+                </p>
+              </SheetBody>
+              <div className="ui-sheet__footer">
+                <Button variant="secondary" onClick={close}>취소</Button>
+                <Button variant="primary" onClick={confirmActivate}>시작하기</Button>
+              </div>
+            </>
+          )}
+        </Sheet>
+      )}
+      {pausingPass && (
+        <Sheet label="기간 정지 설정" onClose={() => setPausing(null)}>
+          {(close) => (
+            <>
+              <SheetHeader left={closeBtn(close)} title="기간 정지" />
+              <SheetBody gap={12}>
+                <p className="mp-sheet-sub">{brandOf(pausingPass.brand).name} {passTitle(pausingPass)}</p>
+                <Field icon={Clock} label="정지 시작일" htmlFor="pause-from">
+                  <Input id="pause-from" type="date" aria-label="정지 시작일" min={todayKey} value={pfrom} onChange={(e) => e.target.value && setPfrom(e.target.value < todayKey ? todayKey : e.target.value)} />
+                </Field>
+                <div>
+                  <div className="mp-stepper-label">정지 기간 (1~{PAUSE_MAX_DAYS}일)</div>
+                  <div className="mp-stepper">
+                    <Button variant="secondary" size="icon" aria-label="정지 기간 줄이기" disabled={pdays <= 1} onClick={() => setPdays((d) => Math.max(1, d - 1))}>−</Button>
+                    <span aria-label="정지 기간" className="mp-stepper__value">{pdays}일</span>
+                    <Button variant="secondary" size="icon" aria-label="정지 기간 늘리기" disabled={pdays >= PAUSE_MAX_DAYS} onClick={() => setPdays((d) => Math.min(PAUSE_MAX_DAYS, d + 1))}>+</Button>
                   </div>
                 </div>
-              </section>
-              <Button variant="outline" size="lg" fullWidth onClick={signOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
-            </div>
-          )}
-
-      {activatingPass && (
-            <Dialog label="사용 시작일 지정" title={`${brandOf(activatingPass.brand).name} ${passTitle(activatingPass)} 사용 시작일`} actions={<>
-              <Button variant="secondary" onClick={() => setActivating(null)}>취소</Button>
-              <Button variant="primary" onClick={confirmActivate}>시작하기</Button>
-            </>}>
-              <Input type="date" aria-label="사용 시작일" value={astart} onChange={(e) => e.target.value && setAstart(e.target.value)} />
-              <p className="ui-dialog__text mp-dialog-note">
-                {activatingPass.kind === "period" ? `만료일 ${fmtDate(addDays(astart, activatingPass.days - 1))} (${activatingPass.days}일 이용)` : `${fmtDate(astart)}부터 이용 · 총 ${activatingPass.total}회`}
-              </p>
-            </Dialog>
-          )}
-          {delPass != null && (
-            <Dialog role="alertdialog" label="이용권 삭제 확인" level="top" title="이용권을 삭제하시겠습니까?" actions={<>
-              <Button variant="secondary" onClick={() => setDelPass(null)}>취소</Button>
-              <Button variant="danger-solid" onClick={() => { savePasses((l) => l.filter((y) => y.id !== delPass)); setDelPass(null); }}>확인</Button>
-            </>}>
-              <p className="ui-dialog__text">삭제한 이용권은 다시 복구할 수 없습니다.</p>
-            </Dialog>
-          )}
-          {pausingPass && delAsk && (
-            <Dialog role="alertdialog" label="정지 기간 일정 삭제" level="raised" title={`정지 기간에 포함된 ${brandOf(pausingPass.brand).name} 암장의 일정을 삭제하시겠습니까?`} actions={<>
-              <Button variant="secondary" onClick={() => setDelAsk(false)}>취소</Button>
-              <Button variant="primary" onClick={() => { onDeleteRange(pausingPass.brand, pfrom, pto); applyPause(); }}>확인</Button>
-            </>}>
-              <p className="ui-dialog__text">
-                {overlaps.slice(0, 3).map((o) => `${fmtDate(o.date)} ${o.place}`).join(", ")}{overlaps.length > 3 ? ` 외 ${overlaps.length - 3}건` : ""} (총 {overlaps.length}건)
-              </p>
-            </Dialog>
-          )}
-          {pausingPass && (
-            <Dialog label="기간 정지 설정" title={`${brandOf(pausingPass.brand).name} 기간 정지`} actions={<>
-              <Button variant="secondary" onClick={() => setPausing(null)}>취소</Button>
-              <Button variant="primary" onClick={confirmPauseSet}>정지하기</Button>
-            </>}>
-              <Field icon={Clock} label="정지 시작일" htmlFor="pause-from">
-                <Input id="pause-from" type="date" aria-label="정지 시작일" min={todayKey} value={pfrom} onChange={(e) => e.target.value && setPfrom(e.target.value < todayKey ? todayKey : e.target.value)} />
-              </Field>
-              <div className="mp-stepper-wrap">
-                <div className="mp-stepper-label">정지 기간 (1~{PAUSE_MAX_DAYS}일)</div>
-                <div className="mp-stepper">
-                  <Button variant="secondary" size="icon" aria-label="정지 기간 줄이기" disabled={pdays <= 1} onClick={() => setPdays((d) => Math.max(1, d - 1))}>−</Button>
-                  <span aria-label="정지 기간" className="mp-stepper__value">{pdays}일</span>
-                  <Button variant="secondary" size="icon" aria-label="정지 기간 늘리기" disabled={pdays >= PAUSE_MAX_DAYS} onClick={() => setPdays((d) => Math.min(PAUSE_MAX_DAYS, d + 1))}>+</Button>
-                </div>
+                <p className="ui-sheet__text">
+                  정지 {fmtDate(pfrom)} ~ {fmtDate(addDays(pfrom, pdays - 1))}
+                  {pausingPass.expires && <><br />만료일 {fmtDate(pausingPass.expires)} → {fmtDate(addDays(pausingPass.expires, pdays))} (자동 연장)</>}
+                </p>
+              </SheetBody>
+              <div className="ui-sheet__footer">
+                <Button variant="secondary" onClick={close}>취소</Button>
+                <Button variant="primary" onClick={confirmPauseSet}>정지하기</Button>
               </div>
-              <p className="ui-dialog__text mp-dialog-note">
-                정지 {fmtDate(pfrom)} ~ {fmtDate(addDays(pfrom, pdays - 1))}
-                {pausingPass.expires && <><br />만료일 {fmtDate(pausingPass.expires)} → {fmtDate(addDays(pausingPass.expires, pdays))} (자동 연장)</>}
-              </p>
-            </Dialog>
+            </>
           )}
+        </Sheet>
+      )}
+      {pausingPass && delAsk && (
+        <ConfirmSheet label="정지 기간 일정 삭제" title={`정지 기간에 포함된 ${brandOf(pausingPass.brand).name} 암장의 일정을 삭제하시겠습니까?`} onClose={() => setDelAsk(false)} actions={(c) => <>
+          <Button variant="secondary" onClick={c}>취소</Button>
+          <Button variant="primary" onClick={() => { onDeleteRange(pausingPass.brand, pfrom, pto); applyPause(); }}>확인</Button>
+        </>}>
+          <p className="ui-sheet__text">
+            {overlaps.slice(0, 3).map((o) => `${fmtDate(o.date)} ${o.place}`).join(", ")}{overlaps.length > 3 ? ` 외 ${overlaps.length - 3}건` : ""} (총 {overlaps.length}건)
+          </p>
+        </ConfirmSheet>
+      )}
+      {delPass != null && (
+        <ConfirmSheet label="이용권 삭제 확인" title="이용권을 삭제하시겠습니까?" onClose={() => setDelPass(null)} actions={(c) => <>
+          <Button variant="secondary" onClick={c}>취소</Button>
+          <Button variant="danger-solid" onClick={() => { savePasses((l) => l.filter((y) => y.id !== delPass)); setDelPass(null); }}>확인</Button>
+        </>}>
+          <p className="ui-sheet__text">삭제한 이용권은 다시 복구할 수 없습니다.</p>
+        </ConfirmSheet>
+      )}
     </Container>
   );
 }

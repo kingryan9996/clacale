@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bell, Car, Check, ChevronLeft, ChevronRight, Clock, Heart, MapPin, Repeat, StickyNote, X } from "lucide-react";
-import { Button, Dialog, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
+import { Button, ConfirmSheet, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
 import { BRANDS, CUSTOM, brandOf, ko } from "@/constants/brands";
 import { ALERTS, REPEATS, TRAVEL } from "@/constants/schedule";
 import { H12, MIN5, addDays, alertLabel, defaultStart, fmtDate, fmtShort, hm, pad, plus3h, toStr } from "@/lib/dates";
@@ -34,7 +34,7 @@ export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, pas
   const valid = place && end >= start;
 
   return (
-    <Sheet full onClose={onClose}>
+    <Sheet onClose={onClose}>
       {(close) => {
         const doSave = () => {
           onSave({ id: Date.now(), brand: place.brandId, place: place.text, start, end, travel, repeat, alerts, memo: memo.trim() });
@@ -152,15 +152,15 @@ export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, pas
               </Field>
             </SheetBody>
             {confirmPause && conflicts.length > 0 && (
-              <Dialog role="alertdialog" label="이용권 정지 기간 조정" title="정지 기간을 일정 전날까지로 조정하시겠습니까?" actions={<>
-                <Button variant="secondary" onClick={() => setConfirmPause(false)}>취소</Button>
+              <ConfirmSheet label="이용권 정지 기간 조정" title="정지 기간을 일정 전날까지로 조정하시겠습니까?" onClose={() => setConfirmPause(false)} actions={(c) => <>
+                <Button variant="secondary" onClick={c}>취소</Button>
                 <Button variant="primary" onClick={() => { onAdjustPasses(conflicts.map((x) => x.id), start.slice(0, 10)); setConfirmPause(false); doSave(); }}>확인</Button>
               </>}>
-                <p className="ui-dialog__text">
+                <p className="ui-sheet__text">
                   {brandOf(place.brandId).name} {passTitle(conflicts[0])}의 정지 기간({fmtDate(conflicts[0].pause.from)}~{fmtDate(conflicts[0].pause.to)})이 이 일정과 겹쳐요.
                   확인하면 정지가 {fmtDate(addDays(start.slice(0, 10), -1))}까지로 줄고, 만료일도 그만큼 되돌아가요.
                 </p>
-              </Dialog>
+              </ConfirmSheet>
             )}
           </>
         );

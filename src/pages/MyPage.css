@@ -52,8 +52,7 @@
 .mp-gym-add .ui-input { flex: 1; }
 .mp-gym-add .ui-btn { flex-shrink: 0; white-space: nowrap; }
 
-.mp-dialog-note { margin-top: 12px; font-size: 13px; }
-.mp-stepper-wrap { margin-top: 12px; }
+.mp-sheet-sub { margin: 0; font-size: 15px; font-weight: 700; }
 .mp-stepper-label { margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
 .mp-stepper { display: flex; align-items: center; justify-content: center; gap: 16px; }
 .mp-stepper__value { min-width: 56px; text-align: center; font-size: 20px; font-weight: 700; }

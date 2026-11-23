@@ -7,12 +7,19 @@ React 19 + Vite + react-router-dom 기반 모바일 우선 웹앱. 사용자에�
 1. **색상 하드코딩 금지** — hex / rgb / rgba / hsl 값을 코드에 직접 쓰지 않는다. 색은 `src/styles/tokens.css`의 CSS 변수(`var(--color-*)`)만 사용한다.
    - 브랜드 색 변경은 `--color-primary` 하나만 수정한다. hover / active / soft / strong 은 자동 파생된다.
    - 허용 예외 (하드코딩이 아니라 *데이터*): `src/constants/brands.js`의 암장 브랜드 고유 색. 화면에서는 `style={{ "--brand": b.color }}` 로 CSS 변수에만 실어 보낸다.
-2. **`<button>`, `<input>`, `<select>`, `<textarea>`에 직접 스타일을 입히지 않는다** — 항상 `@/components/ui`의 `Button`, `Input`, `Label`, `Field`, `Container`, `Sheet`, `Dialog`를 쓴다.
+2. **`<button>`, `<input>`, `<select>`, `<textarea>`에 직접 스타일을 입히지 않는다** — 항상 `@/components/ui`의 `Button`, `Input`, `Label`, `Field`, `Container`, `Sheet`, `ConfirmSheet`를 쓴다.
 3. **variant / 상태가 없으면 먼저 `src/components/ui/`를 확장한다** — 페이지에서 인라인 `style`로 때우지 않는다.
    - 인라인 `style`은 *동적 데이터 값을 CSS 변수로 전달*할 때만 허용 (`style={{ "--brand": ..., "--ratio": ..., "--rows": ... }}`).
    - 페이지/컴포넌트 고유 레이아웃은 같은 이름의 `.css` 파일에 클래스로 둔다 (`pages/Calendar.css` 등, 클래스 접두사 `cal-`, `mp-` 처럼 구분).
 4. **내부 import는 모두 `@/` 절대 경로** — `../`, `./` 상대 경로 금지 (CSS import 포함). `@` = `src/` (`vite.config.js`, `jsconfig.json`).
 5. **도메인 상수는 `src/constants/`에 둔다** — 브랜드(`brands.js`), 암장(`gyms.js`), 일정 옵션(`schedule.js`), 이용권(`passes.js`), 혼잡도(`crowd.js`), 게시판(`board.js`), 내비게이션(`nav.js`). 컴포넌트/lib 파일 안에 목록·옵션 상수를 새로 정의하지 않는다.
+
+## 모달/팝업 규칙
+
+**앞으로 앱 내에 추가되는 모든 모달/팝업은 개별 페이지 뷰 전환이나 커스텀 오버레이를 만들지 말고, 반드시 공통 `Sheet` 컴포넌트(일정 추가 모달과 동일한 하단 슬라이드 업 애니메이션 및 풀 하이트 규격)를 사용할 것.**
+
+- 닫기는 항상 헤더 좌측 `X` 버튼(`SheetHeader`의 `left`)으로 통일한다. `<` 뒤로가기 헤더는 한 시트 *안에서* 하위 단계를 오가는 경우(예: 일정 추가의 장소/일시 선택)에만 쓴다.
+- 확인/삭제 확인 같은 짧은 팝업도 `ConfirmSheet`(= `Sheet`)로 띄운다. `position: fixed/absolute` 오버레이, `window.confirm` 등을 직접 만들지 않는다.
 
 ## 구조
 
@@ -22,7 +29,7 @@ src/
 ├─ App.jsx / App.css   # AuthProvider 루트, AccountApp(일정·이용권·찜 상태), 라우팅, 탭바
 ├─ context/            # AuthContext.jsx (AuthProvider, useAuth)
 ├─ styles/             # tokens.css(디자인 토큰), global.css(리셋·폰트·safe-area)
-├─ components/ui/      # 공통 UI (Button, Input, Label, Field, Container, Sheet, Dialog) + index.js
+├─ components/ui/      # 공통 UI (Button, Input, Label, Field, Container, Sheet, ConfirmSheet) + index.js
 ├─ components/         # 도메인 컴포넌트 (AddSheet, DetailSheet)
 ├─ pages/              # Calendar, Board, MyPage, Login (+ 각 .css)
 ├─ constants/          # 정적 도메인 데이터
@@ -35,7 +42,7 @@ src/
 - `Input` — `as`: input(기본) | textarea | select, `label`, `icon`, `error`. 라벨 없이 쓰면 컨트롤만 렌더.
 - `Field` — 라벨 + 임의 컨트롤(칩 묶음 등) 폼 행. `Label` — 아이콘 포함 폼 라벨.
 - `Container` — 모바일 폭 컨테이너 (`height`: screen | fill, `padded`, `center`).
-- `Sheet` / `SheetHeader` / `SheetBody` — 바텀시트. `Dialog` — 시트 위 확인/선택 팝업 (`level`: raised | top).
+- `Sheet` / `SheetHeader` / `SheetBody` — 하단 슬라이드업 풀 하이트 바텀시트(앱 모달 표준). 하단 버튼은 `<div className="ui-sheet__footer">`. `ConfirmSheet` — 확인/선택 팝업도 같은 Sheet 로 띄우는 래퍼(`actions={(close) => ...}`).
 - ui CSS 선택자는 `:where()`로 감싸 specificity 0 이다. 페이지 클래스(`.cal__cell` 등)가 항상 덮어쓸 수 있다.
 - `:hover` 스타일은 반드시 `@media (hover: hover)` 안에 둔다 (터치 기기 hover 잔상 방지).
 

@@ -21,7 +21,7 @@ src/
     tokens.css              디자인 토큰: Brand / Semantic / Neutral / Radius / Shadow / Z-index
                             (--color-primary 하나만 바꾸면 hover·active·soft 까지 앱 전체에 반영)
     global.css              box-sizing, 기본 폰트, PWA safe-area
-  components/ui/            공통 UI: Button, Input, Label, Field, Container, Sheet(+Header/Body), Dialog, index.js (각 .css)
+  components/ui/            공통 UI: Button, Input, Label, Field, Container, Sheet(+Header/Body), ConfirmSheet, index.js (각 .css)
   components/               AddSheet(일정 추가·장소/일시 선택), DetailSheet(상세·삭제, CrowdBadge)
   pages/                    Calendar (/), Board (/board), MyPage (/mypage), Login   (각 .css)
   constants/                brands, gyms, schedule, passes, crowd, board, nav
