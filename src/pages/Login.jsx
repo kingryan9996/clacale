@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Button, Container, Input } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { auth } from "@/lib/auth";
 import "@/pages/Login.css";
 
 /* ---------- 로그인 화면 (카카오 / Google / 이메일 / 비회원) ---------- */
-export default function Login({ onSignIn }) {
+export default function Login() {
+  const { signIn: onSignIn } = useAuth();
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");

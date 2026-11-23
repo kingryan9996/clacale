@@ -19,13 +19,14 @@ React 19 + Vite + react-router-dom 기반 모바일 우선 웹앱. 사용자에�
 ```
 src/
 ├─ main.jsx            # tokens.css → global.css 를 최상단에서 import
-├─ App.jsx / App.css   # 상태 허브(세션·일정·이용권·찜), 라우팅, 탭바
+├─ App.jsx / App.css   # AuthProvider 루트, AccountApp(일정·이용권·찜 상태), 라우팅, 탭바
+├─ context/            # AuthContext.jsx (AuthProvider, useAuth)
 ├─ styles/             # tokens.css(디자인 토큰), global.css(리셋·폰트·safe-area)
 ├─ components/ui/      # 공통 UI (Button, Input, Label, Field, Container, Sheet, Dialog) + index.js
 ├─ components/         # 도메인 컴포넌트 (AddSheet, DetailSheet)
 ├─ pages/              # Calendar, Board, MyPage, Login (+ 각 .css)
 ├─ constants/          # 정적 도메인 데이터
-└─ lib/                # 순수 로직 (dates, events, crowd, passes, seed, store, auth)
+└─ lib/                # 순수 로직 (dates, events, crowd, passes, seed, store, auth, account)
 ```
 
 ## UI 컴포넌트 사용법
@@ -38,9 +39,13 @@ src/
 - ui CSS 선택자는 `:where()`로 감싸 specificity 0 이다. 페이지 클래스(`.cal__cell` 등)가 항상 덮어쓸 수 있다.
 - `:hover` 스타일은 반드시 `@media (hover: hover)` 안에 둔다 (터치 기기 hover 잔상 방지).
 
-## 인증
+## 인증 (`src/context/AuthContext.jsx`)
 
-`AuthContext`는 없다. 세션은 `App.jsx`의 `session` 상태와 `lib/auth.js`(스텁, Supabase 연동 예정)로 관리한다.
+- `AuthProvider`가 전역 세션(`null | {type:"guest"} | {type:"user", id, provider, name}`)을 가지며, `App.jsx` 최상단이 `<AuthProvider>`로 감싸져 있다.
+- `useAuth()`가 `{ session, uid, isGuest, signIn, signOut }`을 돌려준다. 페이지/컴포넌트는 세션·로그인·로그아웃을 **prop이나 로컬 상태로 따로 관리하지 않고 반드시 `useAuth()`로 참조**한다.
+- 세션 저장(`clacale:session`)과 계정별 데이터 준비(게스트 데이터 이어받기, `lib/account.js`)는 `signIn` 안에서만 한다. 페이지에서 `store`로 세션을 직접 읽고 쓰지 않는다.
+- 일정/이용권/찜/커스텀 암장 상태는 `App.jsx`의 `AccountApp`이 `uid`별로 보관한다(`key={uid}`로 계정 전환 시 재마운트).
+- 실제 인증 호출은 `lib/auth.js`(스텁, Supabase 연동 예정)에만 둔다.
 
 ## 검증
 

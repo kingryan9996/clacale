@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, Clock, Heart, MapPin, Plus, Repeat, X } from "lucide-react";
-import { Button, Dialog, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
+import { Button, Container, Dialog, Field, Input } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { BRANDS, brandOf } from "@/constants/brands";
 import { COUNTS, PASS_ORDER, PASS_STATUS, PAUSE_MAX_DAYS, PERIODS, VALIDS } from "@/constants/passes";
 import { addDays, fmtDate, keyOf, todayKey } from "@/lib/dates";
@@ -8,7 +9,8 @@ import { brandOccurrences, endDate, passLine, passTitle, pauseHistory, pauseStat
 import "@/pages/MyPage.css";
 
 /* ---------- 마이페이지: 프로필 / 내 이용권 / 찜 센터 / 커스텀 암장 ---------- */
-export default function MyPage({ session, passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange, onClose }) {
+export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange }) {
+  const { session, signOut } = useAuth();
   const [view, setView] = useState("main"); // main | addPass
   const [pausing, setPausing] = useState(null); // 정지 설정 중인 이용권 id
   const [gymName, setGymName] = useState("");
@@ -104,16 +106,15 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
   };
 
   return (
-    <Sheet full onClose={onClose}>
-      {(close) => (
-        <>
-          <SheetHeader
-            left={<Button variant="ghost" size="icon" onClick={view === "main" ? close : () => setView("main")} aria-label={view === "main" ? "닫기" : "뒤로"}>{view === "main" ? <X size={22} /> : <ChevronLeft size={22} />}</Button>}
-            title={view === "main" ? "마이페이지" : "이용권 추가"}
-          />
+    <Container height="fill" className="mp">
+      <header className="mp__header">
+        {view === "addPass" ? <Button variant="ghost" size="icon" onClick={() => setView("main")} aria-label="뒤로"><ChevronLeft size={22} /></Button> : <span className="mp__spacer" />}
+        <h1 className="mp__title">{view === "main" ? "마이페이지" : "이용권 추가"}</h1>
+        <span className="mp__spacer" />
+      </header>
 
           {view === "addPass" ? (
-            <SheetBody>
+            <div className="mp__body" data-gap="16">
               <Field icon={MapPin} label="브랜드 (지점 구분 없이 브랜드 단위로 관리)">
                 <Input as="select" aria-label="이용권 브랜드" value={pb} onChange={(e) => setPb(e.target.value)}>{BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Input>
               </Field>
@@ -142,9 +143,9 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               </Field>
               {blocked && <p role="alert" className="mp-error">{brandOf(pb).name} {passTitle(activeOfBrand)}이(가) 이용 중이라 같은 종류의 이용권은 등록할 수 없어요. 만료되거나 소진된 후에 등록할 수 있어요.</p>}
               <Button variant="primary" size="lg" disabled={blocked} onClick={addPass}>이용권 추가</Button>
-            </SheetBody>
+            </div>
           ) : (
-            <SheetBody gap={20}>
+            <div className="mp__body" data-gap="20">
               <div className="mp-box mp-profile">
                 <span className="mp-avatar">{guest ? "G" : (session.name || "?").slice(0, 1).toUpperCase()}</span>
                 <span className="mp-profile__text">
@@ -207,10 +208,11 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
                   </div>
                 </div>
               </section>
-            </SheetBody>
+              <Button variant="outline" size="lg" fullWidth onClick={signOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
+            </div>
           )}
 
-          {activatingPass && (
+      {activatingPass && (
             <Dialog label="사용 시작일 지정" title={`${brandOf(activatingPass.brand).name} ${passTitle(activatingPass)} 사용 시작일`} actions={<>
               <Button variant="secondary" onClick={() => setActivating(null)}>취소</Button>
               <Button variant="primary" onClick={confirmActivate}>시작하기</Button>
@@ -261,8 +263,6 @@ export default function MyPage({ session, passes, favs, customGyms, savePasses, 
               </p>
             </Dialog>
           )}
-        </>
-      )}
-    </Sheet>
+    </Container>
   );
 }

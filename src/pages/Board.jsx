@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, StickyNote, Trash2, X } from "lucide-react";
 import { Button, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { BOARD_KEY, seedPosts } from "@/constants/board";
 import { fmtShort, toStr } from "@/lib/dates";
 import { store } from "@/lib/store";
@@ -9,7 +10,8 @@ import "@/pages/Board.css";
 /* ---------- 자유게시판: 클라이머 커뮤니티 (글 목록 + 글쓰기, localStorage 저장) ---------- */
 const timeLabel = (ts) => fmtShort(toStr(new Date(ts)));
 
-export default function Board({ session }) {
+export default function Board() {
+  const { session } = useAuth();
   const me = session.type === "guest" ? "비회원" : session.name;
   const [posts, setPosts] = useState(() => store.get(BOARD_KEY, null) ?? seedPosts());
   const [openId, setOpenId] = useState(null); // 펼친 글

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Container } from "@/components/ui";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { TABS } from "@/constants/nav";
 import { MAX_CAPACITY, crowdLevel, gymIdOf, midSlot, sampleVisits } from "@/lib/crowd";
 import { addDays, keyOf, parseKey, refreshTodayKey, today, todayKey } from "@/lib/dates";
@@ -14,12 +15,26 @@ import Login from "@/pages/Login";
 import MyPage from "@/pages/MyPage";
 import "@/App.css";
 
-/* ---------- 전역 상태 허브: 세션 / 일정 / 이용권 / 찜 / 커스텀 암장 + localStorage 동기화 + 라우팅 ---------- */
+/* ---------- 앱 루트: 전역 세션(AuthProvider) → 로그인 여부에 따라 Login / 계정 앱 ---------- */
 export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
+  );
+}
+
+function AuthGate() {
+  const { session, uid } = useAuth();
+  if (!session) return <Login />;
+  return <AccountApp key={uid} />; // 계정이 바뀌면 상태를 새로 불러오도록 재마운트
+}
+
+/* ---------- 전역 상태 허브: 일정 / 이용권 / 찜 / 커스텀 암장 + localStorage 동기화 + 라우팅 ---------- */
+function AccountApp() {
+  const { uid } = useAuth();
   const [ym, setYm] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [sel, setSel] = useState(todayKey);
-  const [session, setSession] = useState(() => store.get("clacale:session", null)); // null | {type:"guest"} | {type:"user", ...}
-  const uid = session?.type === "user" ? session.id : "guest";
   const [events, setEvents] = useState(() => store.get(`clacale:events:${uid}`, seed));
   const commit = (fn) => setEvents((p) => { const n = fn(p); store.set(`clacale:events:${uid}`, n); return n; });
   const [passes, setPasses] = useState(() => store.get(`clacale:passes:${uid}`, MOCK_PASSES));
@@ -42,10 +57,9 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (!session) return;
     const res = settleCountPasses(passes, events, todayKey);
     if (res) savePasses(() => res);
-  }, [session, passes, events, tick]);
+  }, [passes, events, tick]);
   const [favs, setFavs] = useState(() => store.get(`clacale:favs:${uid}`, [])); // 즐겨찾기한 센터(브랜드) 키: "b:브랜드id"
   const toggleFav = (key) => setFavs((p) => { const n = p.includes(key) ? p.filter((k) => k !== key) : [...p, key]; store.set(`clacale:favs:${uid}`, n); return n; });
   // 삭제 범위: one = 이 일정만(예외 날짜 기록), after = 이 날짜 이후 모두(종료일 기록, 과거 유지), all = 시리즈 전체
@@ -68,20 +82,7 @@ export default function App() {
     const visit = sampleVisits(date, gym, slot) + own;
     return { date, gym_id: gym, time_slot: slot, visit_count: visit, max_capacity: MAX_CAPACITY, pct: (visit / MAX_CAPACITY) * 100, level: crowdLevel(visit) };
   };
-  // 로그인/게스트 진입: 계정별 일정·즐겨찾기를 불러오고, 첫 로그인 때는 게스트 일정을 이어받음
-  const signIn = (sess) => {
-    const k = sess.type === "user" ? sess.id : "guest";
-    let evs = store.get(`clacale:events:${k}`, null);
-    if (evs === null) { evs = sess.type === "user" ? store.get("clacale:events:guest", seed) : seed; store.set(`clacale:events:${k}`, evs); }
-    store.set("clacale:session", sess);
-    const mig = (name, d) => { let v = store.get(`clacale:${name}:${k}`, null); if (v === null) { v = sess.type === "user" ? store.get(`clacale:${name}:guest`, d) : d; store.set(`clacale:${name}:${k}`, v); } return v; };
-    setEvents(evs); setFavs(store.get(`clacale:favs:${k}`, [])); setPasses(mig("passes", MOCK_PASSES)); setCustomGyms(mig("gyms", [])); setSession(sess);
-  };
-  const signOut = () => { store.set("clacale:session", null); setSession(null); };
   const addEvent = (ev) => commit((p) => [...p, ev]);
-
-  // 세션이 없으면 로그인 페이지
-  if (!session) return <Login onSignIn={signIn} />;
 
   return (
     <BrowserRouter>
@@ -89,11 +90,11 @@ export default function App() {
         <main className="app-main">
           <Routes>
             <Route path="/" element={
-              <Calendar session={session} ym={ym} setYm={setYm} sel={sel} setSel={setSel} events={events} addEvent={addEvent} deleteEvent={deleteEvent} statOf={statOf}
-                favs={favs} toggleFav={toggleFav} passes={passes} customGyms={customGyms} adjustPasses={adjustPasses} signOut={signOut} />} />
-            <Route path="/board" element={<Board session={session} />} />
+              <Calendar ym={ym} setYm={setYm} sel={sel} setSel={setSel} events={events} addEvent={addEvent} deleteEvent={deleteEvent} statOf={statOf}
+                favs={favs} toggleFav={toggleFav} passes={passes} customGyms={customGyms} adjustPasses={adjustPasses} />} />
+            <Route path="/board" element={<Board />} />
             <Route path="/mypage" element={
-              <MyPage session={session} passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
+              <MyPage passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
                 onToggleFav={toggleFav} events={events} onDeleteRange={deleteBrandRange} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

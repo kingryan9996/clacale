@@ -1,60 +1,22 @@
-import { createContext, useContext, useState } from 'react';
-import { store } from '../lib/store';
-
-// 인증 스텁 (제공해주신 구조 그대로 반영)
-export const auth = {
-  async oauth(provider) { 
-    return { type: "user", id: `${provider}-demo`, provider, name: provider === "kakao" ? "카카오 데모 계정" : "Google 데모 계정" }; 
-  },
-  async email(email) { 
-    return { type: "user", id: `email-${email}`, provider: "email", name: email }; 
-  },
-};
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { prepareAccount, uidOf } from "@/lib/account";
+import { store } from "@/lib/store";
 
 const AuthContext = createContext(null);
+const SESSION_KEY = "clacale:session";
 
-// 1. 테스트용 고정 세션 객체 정의
-const TEST_SESSION = {
-  type: "user",
-  id: "test-user-999",
-  provider: "kakao",
-  name: "테스트 클라이머"
-}
-
-
+/* 전역 세션: null | { type: "guest" } | { type: "user", id, provider, name }
+   페이지/컴포넌트는 session·signIn·signOut 을 prop 으로 받지 않고 useAuth() 로 직접 참조한다. */
 export function AuthProvider({ children }) {
-    // 배포용
-//   const [session, setSession] = useState(() => store.get("clacale:session", null));
-
-  // 개발용. localStorage에 세션이 없으면(null이면) TEST_SESSION을 기본값으로 사용
-  const [session, setSession] = useState(() => {
-    return store.get("clacale:session", null) ?? TEST_SESSION;
-  });
-
-// 카카오/구글 로그인 함수
-  const loginWithOAuth = async (provider) => {
-    const sess = await auth.oauth(provider);
-    store.set("clacale:session", sess);
-    setSession(sess);
-  };
-
-  // 이메일 로그인 함수
-  const loginWithEmail = async (email) => {
-    const sess = await auth.email(email);
-    store.set("clacale:session", sess);
-    setSession(sess);
-  };
-
-  const signOut = () => {
-    store.set("clacale:session", null);
-    setSession(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ session, loginWithOAuth, loginWithEmail, signOut, auth }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const [session, setSession] = useState(() => store.get(SESSION_KEY, null));
+  const signIn = useCallback((sess) => { prepareAccount(sess); store.set(SESSION_KEY, sess); setSession(sess); }, []);
+  const signOut = useCallback(() => { store.set(SESSION_KEY, null); setSession(null); }, []);
+  const value = useMemo(() => ({ session, uid: uidOf(session), isGuest: session?.type === "guest", signIn, signOut }), [session, signIn, signOut]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth 는 <AuthProvider> 안에서만 사용할 수 있어요.");
+  return ctx;
+}

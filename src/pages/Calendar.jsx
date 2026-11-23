@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AddSheet from "@/components/AddSheet";
 import DetailSheet, { CrowdBadge } from "@/components/DetailSheet";
 import { Button, Container, Sheet, SheetBody, SheetHeader } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { brandOf, ko } from "@/constants/brands";
 import { DOW } from "@/constants/schedule";
 import { byStart, t12, today, todayKey, ymd } from "@/lib/dates";
@@ -21,7 +22,8 @@ function Meta({ icon: Icon, children }) {
 const closeBtn = (close) => <Button variant="ghost" size="icon" onClick={close} aria-label="닫기"><X size={22} /></Button>;
 
 /* ---------- 메뉴 / 통계 / 로그인 유도 ---------- */
-function MenuSheet({ session, onStats, onSignOut, onMyPage, onClose }) {
+function MenuSheet({ onStats, onSignOut, onMyPage, onClose }) {
+  const { session } = useAuth();
   const guest = session.type === "guest";
   return (
     <Sheet onClose={onClose}>
@@ -85,7 +87,8 @@ function StatsSheet({ events, ym, onClose }) {
 }
 
 /* ---------- 캘린더 페이지: 월간 달력 + 선택 날짜 일정 리스트 + 추가/상세 시트 ---------- */
-export default function Calendar({ session, ym, setYm, sel, setSel, events, addEvent, deleteEvent, statOf, favs, toggleFav, passes, customGyms, adjustPasses, signOut }) {
+export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, deleteEvent, statOf, favs, toggleFav, passes, customGyms, adjustPasses }) {
+  const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const [sheet, setSheet] = useState(false);
   const [ymOpen, setYmOpen] = useState(false);
@@ -236,7 +239,7 @@ export default function Calendar({ session, ym, setYm, sel, setSel, events, addE
 
       {sheet && <AddSheet date={sel} onClose={() => setSheet(false)} onSave={handleSave} favs={favs} onToggleFav={toggleFav} passes={passes} customGyms={customGyms} onAdjustPasses={adjustPasses} />}
       {detail && <DetailSheet ev={detail} st={statOf(detail)} onClose={() => setDetail(null)} onDelete={deleteEvent} />}
-      {menuOpen && <MenuSheet session={session} onStats={openStats} onSignOut={handleSignOut} onMyPage={() => { setMenuOpen(false); navigate("/mypage"); }} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <MenuSheet onStats={openStats} onSignOut={handleSignOut} onMyPage={() => { setMenuOpen(false); navigate("/mypage"); }} onClose={() => setMenuOpen(false)} />}
       {statsOpen && <StatsSheet events={events} ym={ym} onClose={() => setStatsOpen(false)} />}
       {loginPrompt && <LoginPrompt onLogin={handleSignOut} onClose={() => setLoginPrompt(false)} />}
     </Container>
