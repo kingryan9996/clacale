@@ -1,4 +1,11 @@
-.mp-box { padding: 14px; border-radius: var(--radius-lg); background: var(--color-bg); }
+.mp { display: flex; flex-direction: column; }
+.mp__header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 16px 16px 8px; }
+.mp__title { margin: 0; font-size: 20px; font-weight: 800; }
+.mp__spacer { display: block; width: 36px; }
+.mp__body { display: flex; flex: 1; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; padding: 0 16px 24px; }
+.mp__body[data-gap="20"] { gap: 20px; }
+
+.mp-box { padding: 14px; border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
 .mp-section-title { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
 .mp-muted { margin: 0; font-size: 14px; color: var(--color-text-subtle); }
 .mp-error { margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-danger-strong); }
@@ -21,7 +28,8 @@
 .mp-add-pass { margin-top: 10px; }
 
 /* 이용권 카드 (컴팩트 2행) */
-.mp-pass { padding: 10px 12px; border-radius: var(--radius-md); background: var(--color-bg); }
+.mp-pass { padding: 10px 12px; border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.mp__body .ui-input { background: var(--color-surface); }
 .mp-pass[data-status="expired"] { opacity: 0.5; }
 .mp-pass__row { display: flex; align-items: center; gap: 8px; }
 .mp-pass__row--2 { justify-content: space-between; margin-top: 6px; }

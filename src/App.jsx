@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Container } from "@/components/ui";
 import { TABS } from "@/constants/nav";
 import { MAX_CAPACITY, crowdLevel, gymIdOf, midSlot, sampleVisits } from "@/lib/crowd";
@@ -93,7 +93,7 @@ export default function App() {
                 favs={favs} toggleFav={toggleFav} passes={passes} customGyms={customGyms} adjustPasses={adjustPasses} signOut={signOut} />} />
             <Route path="/board" element={<Board session={session} />} />
             <Route path="/mypage" element={
-              <MyPageRoute session={session} passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
+              <MyPage session={session} passes={passes} favs={favs} customGyms={customGyms} savePasses={savePasses} saveGyms={saveGyms}
                 onToggleFav={toggleFav} events={events} onDeleteRange={deleteBrandRange} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -104,12 +104,6 @@ export default function App() {
   );
 }
 
-
-/* ---------- 마이페이지 라우트: 시트를 닫으면 캘린더로 돌아감 ---------- */
-function MyPageRoute(props) {
-  const navigate = useNavigate();
-  return <MyPage {...props} onClose={() => navigate("/")} />;
-}
 
 /* ---------- 하단 네비게이션 바 ---------- */
 function TabBar() {
