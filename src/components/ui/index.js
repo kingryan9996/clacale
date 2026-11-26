@@ -1,4 +1,5 @@
 export { default as Button } from "@/components/ui/Button";
+export { default as Checkbox } from "@/components/ui/Checkbox";
 export { default as Container } from "@/components/ui/Container";
 export { default as ConfirmSheet } from "@/components/ui/ConfirmSheet";
 export { default as Field } from "@/components/ui/Field";

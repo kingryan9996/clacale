@@ -12,3 +12,6 @@ export const ALERTS = [
 
 // 반복 일정 삭제 범위
 export const DELETE_SCOPES = [{ id: "one", label: "이 일정만 삭제" }, { id: "after", label: "이후 일정 모두 삭제" }, { id: "all", label: "전체 반복 일정 삭제" }];
+
+// 반복 일정 수정 범위
+export const EDIT_SCOPES = [{ id: "one", label: "이 일정만 수정 (반복 설정은 적용되지 않아요)" }, { id: "after", label: "이후 일정 모두 수정" }, { id: "all", label: "전체 반복 일정 수정" }];

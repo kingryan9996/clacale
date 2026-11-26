@@ -1,0 +1,7 @@
+.err {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  min-height: 100%; padding: 32px 24px; text-align: center; background: var(--bg-wall);
+}
+.err__title { margin: 0; font-size: 18px; font-weight: 700; color: var(--color-text); }
+.err__body { margin: 0; font-size: 14px; line-height: 1.5; color: var(--color-text-muted); }
+.err__actions { display: flex; gap: 8px; margin-top: 8px; }

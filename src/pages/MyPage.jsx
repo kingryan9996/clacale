@@ -1,77 +1,69 @@
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, Clock, Heart, MapPin, Plus, Repeat, X } from "lucide-react";
-import { Button, ConfirmSheet, Container, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
+import { BellRing, ChevronDown, Download, Heart, Plus, Trophy, Upload } from "lucide-react";
+import AdSlot from "@/components/AdSlot";
+import CollectionSheet from "@/components/CollectionSheet";
+import PassSheet from "@/components/PassSheet";
+import LegalLinks from "@/components/LegalLinks";
+import { Button, ConfirmSheet, Container } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { BRANDS, brandOf } from "@/constants/brands";
-import { COUNTS, PASS_ORDER, PASS_STATUS, PAUSE_MAX_DAYS, PERIODS, VALIDS } from "@/constants/passes";
-import { addDays, fmtDate, keyOf, todayKey } from "@/lib/dates";
-import { brandOccurrences, endDate, passLine, passTitle, pauseHistory, pauseState, shortenPause, startPause, statusMap } from "@/lib/passes";
+import { AUTH_TEXT, PROVIDER_LABEL } from "@/constants/auth";
+import { SYNC_TEXT } from "@/constants/sync";
+import { COLLECTION } from "@/constants/collection";
+import { ENDED_PASS_NOTE, PASS_ORDER, PASS_STATUS } from "@/constants/passes";
+import { addDays, fmtDate, keyOf, toStr, todayKey } from "@/lib/dates";
+import { backupFileName, buildBackup, downloadText, parseBackup } from "@/lib/backup";
+import { byCreated } from "@/lib/id";
+import { currentPause, endDate, endPause, finishCountEdit, passLine, passTitle, pauseHistory, pauseState, statusMap } from "@/lib/passes";
 import "@/pages/MyPage.css";
 
-/* ---------- 마이페이지: 프로필 / 내 이용권 / 찜 센터 / 커스텀 암장 ---------- */
-export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms, onToggleFav, events, onDeleteRange }) {
-  const { session, signOut } = useAuth();
-  const [adding, setAdding] = useState(false); // 이용권 추가 시트
-  const [pausing, setPausing] = useState(null); // 정지 설정 중인 이용권 id
-  const [gymName, setGymName] = useState("");
-  const [pb, setPb] = useState(BRANDS[0].id);
-  const [kind, setKind] = useState("period");
-  const [opt, setOpt] = useState(30);
-  const [pstart, setPstart] = useState(todayKey);
-  const [pfrom, setPfrom] = useState(todayKey); // 정지 시작일 (기본: 오늘)
-  const [pdays, setPdays] = useState(PAUSE_MAX_DAYS); // 정지 기간 (기본 15일, 1~15일)
-  const [delAsk, setDelAsk] = useState(false); // 정지 기간 내 일정 삭제 확인
+/* ---------- 마이페이지: 프로필 / 내 이용권 / 찜 센터 ---------- */
+export default function MyPage({ passes, favs, savePasses, onToggleFav, events, onDeleteRange, onRestore, backup, sync }) {
+  const { session, signOut, deleteAccount } = useAuth();
+  const [withdrawing, setWithdrawing] = useState(false); // 회원 탈퇴 확인 시트
+  const [withdrawErr, setWithdrawErr] = useState("");
+  const [collecting, setCollecting] = useState(false); // 이용권 모아보기 시트
+  const [sheet, setSheet] = useState(null); // 이용권 추가/수정 시트: { pass?, preset? }
   const [showEnded, setShowEnded] = useState(false); // '소진된 이용권' 아코디언
   const [busy, setBusy] = useState(null); // 1회 사용 처리 중인 이용권 id
   const lock = useRef(false);
-  const [valid, setValid] = useState(365); // 횟수권 유효기간(일)
   const [delPass, setDelPass] = useState(null); // 삭제 확인 중인 이용권 id
-  const [activating, setActivating] = useState(null); // 사용 시작일 지정 중인 이용권 id
-  const [astart, setAstart] = useState(todayKey);
+  const fileRef = useRef(null);
+  const [backupMsg, setBackupMsg] = useState("");
+  const [incoming, setIncoming] = useState(null); // 가져오기 확인 중인 백업 { data, dropped, counts }
   const guest = session.type === "guest";
   const favBrands = BRANDS.filter((b) => favs.includes(`b:${b.id}`));
-  const pausingPass = passes.find((x) => x.id === pausing);
-  const activatingPass = passes.find((y) => y.id === activating);
 
   const stMap = statusMap(passes);
-  const sorted = [...passes].sort((a, b) => PASS_ORDER[stMap[a.id]] - PASS_ORDER[stMap[b.id]] || a.id - b.id); // 이용중 -> 사용대기 -> 만료됨
-  // 같은 브랜드에서 같은 종류(기간권끼리 / 횟수권끼리)의 이용중(만료/소진 전) 이용권이 있을 때만 등록 불가 (다른 종류는 별개로 등록 가능)
-  const activeOfBrand = passes.find((x) => x.brand === pb && x.kind === kind && stMap[x.id] === "active");
-  const blocked = !!activeOfBrand;
+  const sorted = [...passes].sort((a, b) => PASS_ORDER[stMap[a.id]] - PASS_ORDER[stMap[b.id]] || byCreated(a, b)); // 이용중 -> 사용대기 -> 만료됨
   const liveList = sorted.filter((x) => stMap[x.id] !== "expired"); // 이용중 -> 사용대기
-  const endedList = passes.filter((x) => stMap[x.id] === "expired").sort((a, b) => endDate(b).localeCompare(endDate(a)) || b.id - a.id); // 종료일이 오늘에 가까운 순
-  const pto = addDays(pfrom, pdays - 1);
-  const overlaps = pausingPass ? brandOccurrences(events, pausingPass.brand, pfrom, pto) : [];
-  const openAdd = () => { setPstart(keyOf(new Date())); setKind("period"); setOpt(30); setValid(365); setAdding(true); }; // 열 때마다 시작일 = 오늘
-  const addPass = () => {
-    if (blocked) return;
-    const base = { id: Date.now(), brand: pb, kind, pause: null, start: pstart };
-    savePasses((l) => [...l, kind === "period"
-      ? { ...base, days: opt, expires: addDays(pstart, opt - 1) }
-      : { ...base, total: opt, remaining: opt, validDays: valid, expires: addDays(pstart, valid - 1) }]); // 횟수권도 등록일부터 유효기간
-  };
-  // 사용 시작일 지정: 기간권은 이 날짜 기준으로 만료일 계산, 이용중으로 전환 (기본값: 같은 종류 이용중 이용권이 끝난 다음 날, 없으면 오늘)
+  const endedList = passes.filter((x) => stMap[x.id] === "expired").sort((a, b) => endDate(b).localeCompare(endDate(a)) || byCreated(b, a)); // 종료일이 오늘에 가까운 순
+  const upsertPass = (np) => savePasses((l) => (l.some((y) => y.id === np.id) ? l.map((y) => (y.id === np.id ? np : y)) : [...l, np]));
+  // 사용 시작일 지정 시트: 기본값은 같은 종류 이용중 이용권이 끝난 다음 날, 없으면 오늘
   const openActivate = (x) => {
     const last = passes.filter((y) => y.brand === x.brand && y.kind === x.kind && stMap[y.id] === "active" && y.expires).map((y) => y.expires).sort().pop();
-    setAstart(last && last >= todayKey ? addDays(last, 1) : keyOf(new Date())); setActivating(x.id);
+    setSheet({ pass: x, preset: { start: last && last >= todayKey ? addDays(last, 1) : keyOf(new Date()) } });
   };
-  const confirmActivate = () => { savePasses((l) => l.map((y) => (y.id === activating ? { ...y, start: astart, expires: y.kind === "period" ? addDays(astart, y.days - 1) : y.validDays ? addDays(astart, y.validDays - 1) : null } : y))); setActivating(null); };
-  const unpause = (x) => savePasses((l) => l.map((y) => (y.id === x.id ? shortenPause(y, addDays(todayKey, -1)) : y))); // 오늘부터 정지 해제
-  const applyPause = () => { savePasses((l) => l.map((y) => (y.id === pausing ? startPause(y, pfrom, pdays) : y))); setPausing(null); setDelAsk(false); };
-  const confirmPauseSet = () => (overlaps.length ? setDelAsk(true) : applyPause()); // 겹치는 일정이 있으면 삭제 여부 먼저 확인
   // 1회 사용: 처리 중에는 잠그고(ref+비활성) 연타/더블클릭에도 정확히 1회만 차감, 0회가 되면 소진된 이용권으로 이동
   const consumeOnce = (x) => {
     if (lock.current) return;
     lock.current = true; setBusy(x.id);
-    savePasses((l) => l.map((y) => (y.id === x.id && y.remaining > 0 ? { ...y, remaining: y.remaining - 1, ...(y.remaining - 1 <= 0 ? { endedOn: keyOf(new Date()) } : null) } : y)));
+    savePasses((l) => l.map((y) => (y.id === x.id && y.remaining > 0 ? finishCountEdit(y, { ...y, remaining: y.remaining - 1 }, toStr(new Date())) : y))); // 직접 맞춘 횟수: 지금 이후 시작하는 일정부터 자동 차감
     setTimeout(() => { lock.current = false; setBusy(null); }, 700);
   };
-  const chip = (on) => ({ variant: on ? "primary" : "secondary", size: "sm", pill: true, "aria-pressed": on });
+  const exportData = () => { downloadText(backupFileName(keyOf(new Date())), buildBackup({ events, passes, favs })); backup.onBackedUp(); setBackupMsg("백업 파일을 저장했어요."); };
+  const onPickFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = ""; // 같은 파일을 다시 골라도 동작하도록 초기화
+    if (!f) return;
+    const r = parseBackup(await f.text());
+    if (r.ok) { setBackupMsg(""); setIncoming(r); } else setBackupMsg(r.error);
+  };
+  const confirmImport = () => { onRestore(incoming.data); backup.onBackedUp(); setBackupMsg(`불러왔어요 · 일정 ${incoming.counts.events}개, 이용권 ${incoming.counts.passes}개`); setIncoming(null); };
   // 컴팩트 카드 2행 구성
   //  1행: [브랜드명 · 종류] | [정지 이력] | [상태 배지]
   //  2행: [유효 기간 · D-day] | [버튼 그룹]
   const renderPass = (x) => {
-    const sk = stMap[x.id], ps = pauseState(x), b = brandOf(x.brand);
+    const sk = stMap[x.id], ps = pauseState(x), cp = currentPause(x), b = brandOf(x.brand);
     const badge = ps === "active" ? PASS_STATUS.paused : PASS_STATUS[sk];
     const hist = x.kind === "period" ? (sk === "waiting" ? null : pauseHistory(x) ? `정지 ${pauseHistory(x)}회` : "정지 이력 없음") : x.usedKeys?.length ? `자동 차감 ${x.usedKeys.length}회` : null;
     return (
@@ -88,23 +80,23 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
           <span className="mp-pass__line">{passLine(x, sk)}</span>
           <span className="mp-pass__actions">
             {x.kind === "count" && sk === "active" && <Button variant="secondary" size="sm" className="mp-mini" disabled={busy === x.id} onClick={() => consumeOnce(x)}>1회 사용</Button>}
-            {ps === "active" || ps === "scheduled"
-              ? <Button variant="outline" size="sm" className="mp-mini" onClick={() => unpause(x)}>정지 해제</Button>
-              : sk === "active" && x.kind === "period" && <Button variant="outline" size="sm" className="mp-mini" onClick={() => { setPfrom(todayKey); setPdays(PAUSE_MAX_DAYS); setPausing(x.id); }}>기간 정지</Button>}
+            {cp && sk !== "expired"
+              ? <Button variant="outline" size="sm" className="mp-mini" onClick={() => savePasses((l) => l.map((y) => (y.id === x.id ? endPause(y) : y)))}>정지 해제</Button>
+              : sk === "active" && x.kind === "period" && <Button variant="outline" size="sm" className="mp-mini" onClick={() => setSheet({ pass: x, preset: { pause: true } })}>기간 정지</Button>}
             {sk === "waiting" && <Button variant="outline" size="sm" className="mp-mini" onClick={() => openActivate(x)}>사용 시작일 지정</Button>}
+            <Button variant="outline" size="sm" className="mp-mini" aria-label={`${b.name} ${passTitle(x)} 수정`} onClick={() => setSheet({ pass: x })}>수정</Button>
             <Button variant="danger" size="sm" className="mp-mini" aria-label={`${b.name} ${passTitle(x)} 삭제`} onClick={() => setDelPass(x.id)}>삭제</Button>
           </span>
         </div>
-        {(ps === "active" || ps === "scheduled") && (
+        {cp && sk !== "expired" && (
           <div className="mp-pass__pause">
-            {ps === "active" ? "정지 기간" : "정지 예정 기간"}: {fmtDate(x.pause.from)} ~ {fmtDate(x.pause.to)}
+            {ps === "active" ? "정지 기간" : "정지 예정 기간"}: {fmtDate(cp.from)} ~ {fmtDate(cp.to)}
           </div>
         )}
       </div>
     );
   };
 
-  const closeBtn = (close) => <Button variant="ghost" size="icon" onClick={close} aria-label="닫기"><X size={22} /></Button>;
   return (
     <Container height="fill" className="mp">
       <header className="mp__header">
@@ -114,11 +106,20 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
       </header>
 
       <div className="mp__body" data-gap="20">
+        {backup.due && (
+          <div role="status" data-backup-notice className="mp-notice">
+            <p className="mp-notice__text"><BellRing size={16} aria-hidden="true" />{backup.text}</p>
+            <div className="mp-notice__actions">
+              <Button variant="primary" size="sm" onClick={exportData}>지금 백업</Button>
+              <Button variant="secondary" size="sm" onClick={backup.onSnooze}>7일 뒤에 다시</Button>
+            </div>
+          </div>
+        )}
         <div className="mp-box mp-profile">
           <span className="mp-avatar">{guest ? "G" : (session.name || "?").slice(0, 1).toUpperCase()}</span>
           <span className="mp-profile__text">
             <span className="mp-profile__name">{guest ? "비회원(Guest)" : session.name}</span>
-            <span className="mp-profile__sub">{guest ? "이 기기에만 저장돼요" : `${session.provider} 로그인`}</span>
+            <span className="mp-profile__sub">{guest ? "이 기기에만 저장돼요" : `${PROVIDER_LABEL[session.provider] ?? session.provider} 로그인`}</span>
           </span>
         </div>
 
@@ -141,11 +142,15 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
                   <span>소진된 이용권 ({endedList.length})</span>
                   <ChevronDown size={18} className="mp-accordion__chevron" data-open={showEnded || undefined} />
                 </Button>
-                {showEnded && <div className="mp-stack mp-stack--top">{endedList.map(renderPass)}</div>}
+                {showEnded && <div className="mp-stack mp-stack--top">
+                  <p className="mp-muted">{ENDED_PASS_NOTE}</p>
+                  {endedList.map(renderPass)}
+                </div>}
               </div>
             )}
           </div>
-          <Button variant="secondary" size="md" fullWidth className="mp-add-pass" onClick={openAdd}><Plus size={16} />이용권 추가</Button>
+          <Button variant="secondary" size="md" fullWidth className="mp-add-pass" onClick={() => setSheet({})}><Plus size={16} />이용권 추가</Button>
+          <Button variant="secondary" size="md" fullWidth className="mp-add-pass" onClick={() => setCollecting(true)}><Trophy size={16} />{COLLECTION.open}</Button>
         </section>
 
         <section>
@@ -161,126 +166,56 @@ export default function MyPage({ passes, favs, customGyms, savePasses, saveGyms,
           )}
         </section>
 
+        <AdSlot placement="mypage" />
+
         <section>
-          <h4 className="mp-section-title">내가 등록한 암장</h4>
-          <div className="mp-stack">
-            {customGyms.map((g) => (
-              <div key={g} className="mp-box mp-gym">
-                <span>{g}</span>
-                <Button variant="ghost" size="icon" aria-label={`${g} 삭제`} onClick={() => saveGyms((l) => l.filter((n) => n !== g))}><X size={16} /></Button>
-              </div>
-            ))}
-            <div className="mp-gym-add">
-              <Input aria-label="커스텀 암장 이름" placeholder="암장 이름" value={gymName} onChange={(e) => setGymName(e.target.value)} />
-              <Button variant="primary" size="md" onClick={() => { const n = gymName.trim(); if (n && !customGyms.includes(n)) saveGyms((l) => [...l, n]); setGymName(""); }}>추가</Button>
-            </div>
+          <h4 className="mp-section-title">데이터 백업</h4>
+          <p className="mp-muted">일정·이용권·찜을 파일로 저장하고, 다른 기기나 새 주소에서 불러올 수 있어요.</p>
+          <div className="mp-backup">
+            <Button variant="secondary" size="md" onClick={exportData}><Download size={16} />내보내기</Button>
+            <Button variant="secondary" size="md" onClick={() => fileRef.current?.click()}><Upload size={16} />가져오기</Button>
+            <input ref={fileRef} type="file" accept="application/json,.json" hidden aria-label="백업 파일 선택" onChange={onPickFile} />
           </div>
+          {backupMsg && <p role="status" className="mp-backup__msg">{backupMsg}</p>}
+          {!guest && sync?.state !== "off" && (
+            <div className="mp-sync" role="status">
+              <span className={`mp-sync__text${sync.state === "error" ? " mp-sync__text--error" : ""}`}>
+                {sync.state === "syncing" ? SYNC_TEXT.syncing : sync.state === "error" ? SYNC_TEXT.error : SYNC_TEXT.ok(new Date(sync.at).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }))}
+              </span>
+              {sync.state === "error" && <Button variant="ghost" size="sm" onClick={sync.retry}>{SYNC_TEXT.retry}</Button>}
+              {sync.skipped > 0 && <span className="mp-sync__text mp-sync__text--error">{SYNC_TEXT.skipped(sync.skipped)}</span>}
+            </div>
+          )}
         </section>
 
         <Button variant="outline" size="lg" fullWidth onClick={signOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
+        {!guest && <Button variant="ghost" size="md" fullWidth className="mp-withdraw" onClick={() => { setWithdrawErr(""); setWithdrawing(true); }}>{AUTH_TEXT.withdraw}</Button>}
+        <LegalLinks />
       </div>
 
       {/* ---- 모든 모달/팝업은 공통 Sheet (하단 슬라이드업 · 풀 하이트) ---- */}
-      {adding && (
-        <Sheet label="이용권 추가" onClose={() => setAdding(false)}>
-          {(close) => (
-            <>
-              <SheetHeader left={closeBtn(close)} title="이용권 추가" />
-              <SheetBody>
-                <Field icon={MapPin} label="브랜드 (지점 구분 없이 브랜드 단위로 관리)">
-                  <Input as="select" aria-label="이용권 브랜드" value={pb} onChange={(e) => setPb(e.target.value)}>{BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Input>
-                </Field>
-                <Field icon={Repeat} label="종류">
-                  <div className="mp-chips">
-                    <Button {...chip(kind === "period")} onClick={() => { setKind("period"); setOpt(30); }}>기간권</Button>
-                    <Button {...chip(kind === "count")} onClick={() => { setKind("count"); setOpt(10); setValid(365); }}>횟수권</Button>
-                  </div>
-                </Field>
-                <Field icon={Clock} label={kind === "period" ? "기간" : "횟수"}>
-                  <div className="mp-chips">
-                    {kind === "period"
-                      ? PERIODS.map((o) => <Button key={o.days} {...chip(opt === o.days)} onClick={() => setOpt(o.days)}>{o.label} ({o.days}일)</Button>)
-                      : COUNTS.map((n) => <Button key={n} {...chip(opt === n)} onClick={() => { setOpt(n); setValid(n === 5 ? 180 : 365); }}>{n}회</Button>)}
-                  </div>
-                </Field>
-                {kind === "count" && (
-                  <Field icon={Clock} label="유효기간 (시작일부터)">
-                    <div className="mp-chips">
-                      {VALIDS.map((o) => <Button key={o.days} {...chip(valid === o.days)} onClick={() => setValid(o.days)}>{o.label} ({o.days}일)</Button>)}
-                    </div>
-                  </Field>
-                )}
-                <Field icon={Clock} label="시작일">
-                  <Input type="date" aria-label="이용권 시작일" value={pstart} onChange={(e) => e.target.value && setPstart(e.target.value)} />
-                </Field>
-                {blocked && <p role="alert" className="mp-error">{brandOf(pb).name} {passTitle(activeOfBrand)}이(가) 이용 중이라 같은 종류의 이용권은 등록할 수 없어요. 만료되거나 소진된 후에 등록할 수 있어요.</p>}
-              </SheetBody>
-              <div className="ui-sheet__footer">
-                <Button variant="primary" size="lg" disabled={blocked} onClick={() => { addPass(); close(); }}>이용권 추가</Button>
-              </div>
-            </>
-          )}
-        </Sheet>
-      )}
-      {activatingPass && (
-        <Sheet label="사용 시작일 지정" onClose={() => setActivating(null)}>
-          {(close) => (
-            <>
-              <SheetHeader left={closeBtn(close)} title="사용 시작일 지정" />
-              <SheetBody gap={12}>
-                <p className="mp-sheet-sub">{brandOf(activatingPass.brand).name} {passTitle(activatingPass)}</p>
-                <Input type="date" aria-label="사용 시작일" value={astart} onChange={(e) => e.target.value && setAstart(e.target.value)} />
-                <p className="ui-sheet__text">
-                  {activatingPass.kind === "period" ? `만료일 ${fmtDate(addDays(astart, activatingPass.days - 1))} (${activatingPass.days}일 이용)` : `${fmtDate(astart)}부터 이용 · 총 ${activatingPass.total}회`}
-                </p>
-              </SheetBody>
-              <div className="ui-sheet__footer">
-                <Button variant="secondary" onClick={close}>취소</Button>
-                <Button variant="primary" onClick={confirmActivate}>시작하기</Button>
-              </div>
-            </>
-          )}
-        </Sheet>
-      )}
-      {pausingPass && (
-        <Sheet label="기간 정지 설정" onClose={() => setPausing(null)}>
-          {(close) => (
-            <>
-              <SheetHeader left={closeBtn(close)} title="기간 정지" />
-              <SheetBody gap={12}>
-                <p className="mp-sheet-sub">{brandOf(pausingPass.brand).name} {passTitle(pausingPass)}</p>
-                <Field icon={Clock} label="정지 시작일" htmlFor="pause-from">
-                  <Input id="pause-from" type="date" aria-label="정지 시작일" min={todayKey} value={pfrom} onChange={(e) => e.target.value && setPfrom(e.target.value < todayKey ? todayKey : e.target.value)} />
-                </Field>
-                <div>
-                  <div className="mp-stepper-label">정지 기간 (1~{PAUSE_MAX_DAYS}일)</div>
-                  <div className="mp-stepper">
-                    <Button variant="secondary" size="icon" aria-label="정지 기간 줄이기" disabled={pdays <= 1} onClick={() => setPdays((d) => Math.max(1, d - 1))}>−</Button>
-                    <span aria-label="정지 기간" className="mp-stepper__value">{pdays}일</span>
-                    <Button variant="secondary" size="icon" aria-label="정지 기간 늘리기" disabled={pdays >= PAUSE_MAX_DAYS} onClick={() => setPdays((d) => Math.min(PAUSE_MAX_DAYS, d + 1))}>+</Button>
-                  </div>
-                </div>
-                <p className="ui-sheet__text">
-                  정지 {fmtDate(pfrom)} ~ {fmtDate(addDays(pfrom, pdays - 1))}
-                  {pausingPass.expires && <><br />만료일 {fmtDate(pausingPass.expires)} → {fmtDate(addDays(pausingPass.expires, pdays))} (자동 연장)</>}
-                </p>
-              </SheetBody>
-              <div className="ui-sheet__footer">
-                <Button variant="secondary" onClick={close}>취소</Button>
-                <Button variant="primary" onClick={confirmPauseSet}>정지하기</Button>
-              </div>
-            </>
-          )}
-        </Sheet>
-      )}
-      {pausingPass && delAsk && (
-        <ConfirmSheet label="정지 기간 일정 삭제" title={`정지 기간에 포함된 ${brandOf(pausingPass.brand).name} 암장의 일정을 삭제하시겠습니까?`} onClose={() => setDelAsk(false)} actions={(c) => <>
+      {collecting && <CollectionSheet passes={passes} onClose={() => setCollecting(false)} />}
+      {sheet && <PassSheet initial={sheet.pass} preset={sheet.preset} passes={passes} events={events} onSave={upsertPass} onDeleteRange={onDeleteRange} onClose={() => setSheet(null)} />}
+      {withdrawing && (
+        <ConfirmSheet label="회원 탈퇴 확인" title={AUTH_TEXT.withdrawTitle} onClose={() => setWithdrawing(false)} actions={(c) => <>
           <Button variant="secondary" onClick={c}>취소</Button>
-          <Button variant="primary" onClick={() => { onDeleteRange(pausingPass.brand, pfrom, pto); applyPause(); }}>확인</Button>
+          <Button variant="danger-solid" onClick={async () => { try { await deleteAccount(); } catch (e) { setWithdrawErr(AUTH_TEXT.withdrawFailed); } }}>{AUTH_TEXT.withdrawOk}</Button>
+        </>}>
+          <p className="ui-sheet__text">{AUTH_TEXT.withdrawBody}</p>
+          <p className="ui-sheet__text">{AUTH_TEXT.withdrawHint}</p>
+          {withdrawErr && <p role="alert" className="mp-error">{withdrawErr}</p>}
+        </ConfirmSheet>
+      )}
+      {incoming && (
+        <ConfirmSheet label="백업 가져오기 확인" title="백업을 불러올까요?" onClose={() => setIncoming(null)} actions={(c) => <>
+          <Button variant="secondary" onClick={c}>취소</Button>
+          <Button variant="danger-solid" onClick={confirmImport}>불러오기</Button>
         </>}>
           <p className="ui-sheet__text">
-            {overlaps.slice(0, 3).map((o) => `${fmtDate(o.date)} ${o.place}`).join(", ")}{overlaps.length > 3 ? ` 외 ${overlaps.length - 3}건` : ""} (총 {overlaps.length}건)
+            지금 데이터(일정 {events.length}개 · 이용권 {passes.length}개)가 백업 데이터(일정 {incoming.counts.events}개 · 이용권 {incoming.counts.passes}개 · 찜 {incoming.counts.favs}개)로 바뀌어요.
+            {incoming.dropped > 0 && <><br />형식이 맞지 않는 {incoming.dropped}개 항목은 제외돼요.</>}
           </p>
+          <p className="ui-sheet__text">먼저 '내보내기'로 지금 데이터를 저장해 두면 안전해요.</p>
         </ConfirmSheet>
       )}
       {delPass != null && (

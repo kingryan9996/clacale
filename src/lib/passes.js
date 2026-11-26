@@ -1,38 +1,99 @@
 import { PERIODS } from "@/constants/passes";
-import { addDays, dayDiff, fmtDate, todayKey } from "@/lib/dates";
+import { addDays, dayDiff, fmtDate, hm, todayKey } from "@/lib/dates";
 import { occursOn } from "@/lib/events";
+import { byCreated } from "@/lib/id";
 
 export const passTitle = (p) => (p.kind === "period" ? `기간권 ${PERIODS.find((x) => x.days === p.days)?.label ?? `${p.days}일`}` : `횟수권 ${p.total}회`);
 
-export const pauseState = (p) => (!p.pause ? "none" : todayKey < p.pause.from ? "scheduled" : todayKey <= p.pause.to ? "active" : "done");
+/* ---------- 정지 이력(pauses: [{ id, from, to }]) · 만료일 자동 계산 ----------
+   기간권 만료일 = 시작일 + 기간 - 1 + 정지 일수 합계 + 추가 일수(bonusDays, 암장이 따로 늘려 준 날 등, 음수 가능)
+   횟수권 만료일 = 시작일 + 유효기간 - 1 + 추가 일수. 이용권을 바꿀 때마다 withExpires 로 expires 를 다시 채운다 */
+export const pauseDays = (z) => Math.max(0, dayDiff(z.from, z.to) + 1);
 
-export const inPause = (p, k) => !!p.pause && p.pause.from <= k && k <= p.pause.to;
+export const pauseTotal = (p) => (p.pauses ?? []).reduce((n, z) => n + pauseDays(z), 0);
 
-const pauseLen = (p) => dayDiff(p.pause.from, p.pause.to) + 1;
-
-// 정지 종료일을 newTo로 줄이면 줄어든 일수만큼 만료일도 되돌림 (newTo가 시작 전이면 정지 자체를 취소)
-export const shortenPause = (p, newTo) => {
-  const cut = Math.min(dayDiff(newTo, p.pause.to), pauseLen(p));
-  const cancelled = newTo < p.pause.from; // 시작 전에 취소된 정지는 이력(횟수)에서 제외
-  return { ...p, expires: p.expires ? addDays(p.expires, -cut) : p.expires, pauseCount: cancelled ? Math.max(0, pauseHistory(p) - 1) : pauseHistory(p), pause: cancelled ? null : { ...p.pause, to: newTo } };
+export const computeExpires = (p) => {
+  if (!p.start) return null;
+  const bonus = p.bonusDays ?? 0;
+  if (p.kind === "period") return p.days ? addDays(p.start, p.days - 1 + pauseTotal(p) + bonus) : null;
+  return p.validDays ? addDays(p.start, p.validDays - 1 + bonus) : null;
 };
 
-export const pauseHistory = (p) => p.pauseCount ?? (p.pause ? 1 : 0); // 기간권 정지 횟수
+export const withExpires = (p) => ({ ...p, expires: computeExpires(p) });
 
-export const startPause = (p, from, days) => ({ ...p, expires: p.expires ? addDays(p.expires, days) : p.expires, pauseCount: pauseHistory(p) + 1, pause: { from, to: addDays(from, days - 1) } }); // 정지 일수만큼 만료일 연장
+export const pauseAt = (p, k) => (p.pauses ?? []).find((z) => z.from <= k && k <= z.to);
+
+export const inPause = (p, k) => !!pauseAt(p, k);
+
+// none(정지 이력 없음) | active(오늘 정지 중) | scheduled(앞으로 정지 예정) | done(지난 정지만 있음)
+export const pauseState = (p, today = todayKey) => {
+  const zs = p.pauses ?? [];
+  if (!zs.length) return "none";
+  if (zs.some((z) => z.from <= today && today <= z.to)) return "active";
+  return zs.some((z) => today < z.from) ? "scheduled" : "done";
+};
+
+// 카드에 보여줄 정지: 지금 정지 중이면 그것, 아니면 가장 가까운 예정
+export const currentPause = (p, today = todayKey) =>
+  pauseAt(p, today) ?? [...(p.pauses ?? [])].filter((z) => today < z.from).sort((a, b) => a.from.localeCompare(b.from))[0];
+
+// date(일정 날짜)부터는 정지를 풀고 싶을 때: 그 날짜가 속한 정지를 전날까지로 줄인다(그 정지가 date 에 시작하면 삭제). 만료일은 자동으로 줄어든다
+export const shortenPauseAt = (p, date) => {
+  const z = pauseAt(p, date);
+  if (!z) return p;
+  const newTo = addDays(date, -1);
+  const pauses = newTo < z.from ? p.pauses.filter((x) => x !== z) : p.pauses.map((x) => (x === z ? { ...x, to: newTo } : x));
+  return withExpires({ ...p, pauses });
+};
+
+// 카드의 [정지 해제]: 정지 중이면 오늘부터 해제, 정지 예정이면 그 예정을 취소
+export const endPause = (p, today = todayKey) => {
+  if (pauseAt(p, today)) return shortenPauseAt(p, today);
+  const next = currentPause(p, today);
+  return next ? withExpires({ ...p, pauses: p.pauses.filter((x) => x !== next) }) : p;
+};
+
+// 서로 겹치는 정지 쌍(경고용). 시작이 끝보다 늦은 잘못된 항목은 invalidPauses 로 따로 찾는다
+export const pauseOverlaps = (pauses) => {
+  const out = [];
+  pauses.forEach((a, i) => pauses.forEach((b, j) => { if (j > i && a.from <= b.to && b.from <= a.to) out.push([i, j]); }));
+  return out;
+};
+
+export const invalidPauses = (pauses) => pauses.filter((z) => !z.from || !z.to || z.to < z.from);
+
+export const pauseHistory = (p) => (p.pauses ?? []).length; // 기간권 정지 횟수
+
+/* ---------- 횟수권 수정 ----------
+   남은 횟수는 "수정한 그 순간의 실제 남은 횟수". 직접 바꾸면 그 시각(countedFrom) 이후에 시작하는 일정만 자동 차감한다.
+   (이미 입력한 숫자에 포함된 운동이 일정으로도 있어 이중 차감되는 것을 막음) */
+export const usedCount = (p) => p.total - p.remaining;
+
+// prev: 수정 전 이용권(새로 만들 때는 null), next: 새 값. nowStr: "YYYY-MM-DDTHH:mm"
+export const finishCountEdit = (prev, next, nowStr) => {
+  const out = { ...next };
+  const remainingChanged = prev ? prev.remaining !== next.remaining : next.remaining !== next.total;
+  if (remainingChanged) out.countedFrom = nowStr;
+  if (out.remaining <= 0) out.endedOn = prev && prev.remaining <= 0 && prev.endedOn ? prev.endedOn : nowStr.slice(0, 10);
+  else delete out.endedOn;
+  return withExpires(out);
+};
 
 // 지난 일정(오늘 이전)마다 해당 브랜드의 이용중 횟수권을 1회씩 자동 차감. 차감한 발생분은 usedKeys에 기록해 중복 차감 방지
 export const settleCountPasses = (passes, events, today) => {
   const used = new Set(passes.flatMap((p) => p.usedKeys ?? []));
   const yesterday = addDays(today, -1);
   let changed = false;
-  const next = [...passes].sort((a, b) => a.id - b.id).map((p) => {
+  const next = [...passes].sort(byCreated).map((p) => {
     if (p.kind !== "count" || p.start == null || p.remaining <= 0) return p;
     const to = p.expires && p.expires < yesterday ? p.expires : yesterday;
     const hits = [];
     events.filter((e) => e.brand === p.brand).forEach((e) => {
       const d0 = e.start.slice(0, 10);
-      for (let k = p.start > d0 ? p.start : d0; k <= to; k = addDays(k, 1)) { const key = `${e.id}|${k}`; if (!used.has(key) && occursOn(e, k)) hits.push({ key, k }); }
+      for (let k = p.start > d0 ? p.start : d0; k <= to; k = addDays(k, 1)) {
+        if (p.countedFrom && `${k}T${hm(e.start)}` < p.countedFrom) continue; // 직접 맞춘 횟수에 이미 포함된 일정은 차감하지 않음
+        const key = `${e.id}|${k}`; if (!used.has(key) && occursOn(e, k)) hits.push({ key, k });
+      }
     });
     hits.sort((a, b) => a.k.localeCompare(b.k) || a.key.localeCompare(b.key));
     const take = hits.slice(0, p.remaining);

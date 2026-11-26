@@ -1,31 +1,45 @@
-import { useState } from "react";
-import { Bell, Car, Check, ChevronLeft, ChevronRight, Clock, Heart, MapPin, Repeat, StickyNote, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Bell, Car, Check, ChevronLeft, ChevronRight, Clock, Heart, MapPin, Repeat, StickyNote, X, Zap } from "lucide-react";
 import { Button, ConfirmSheet, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
-import { BRANDS, CUSTOM, brandOf, ko } from "@/constants/brands";
-import { ALERTS, REPEATS, TRAVEL } from "@/constants/schedule";
-import { H12, MIN5, addDays, alertLabel, defaultStart, fmtDate, fmtShort, hm, pad, plus3h, toStr } from "@/lib/dates";
-import { inPause, passTitle } from "@/lib/passes";
+import { BRANDS, brandOf, ko } from "@/constants/brands";
+import { ALERTS, EDIT_SCOPES, REPEATS, TRAVEL } from "@/constants/schedule";
+import { H12, MIN5, addDays, alertLabel, defaultStart, fmtDate, fmtShort, hm, pad, plus3h, t12, toStr } from "@/lib/dates";
+import { newId } from "@/lib/id";
+import { inPause, passTitle, pauseAt } from "@/lib/passes";
+import { applyPick, quickPicks } from "@/lib/quickAdd";
 import "@/components/AddSheet.css";
 
-/* ---------- 일정 추가 (전체 화면 모달) ---------- */
-export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, passes, customGyms, onAdjustPasses }) {
+/* ---------- 일정 추가 / 수정 (전체 화면 모달) — initial 이 있으면 그 일정(발생분)을 수정 ---------- */
+export default function AddSheet({ date, initial, onClose, onSave, favs, onToggleFav, passes, onAdjustPasses, events = [] }) {
   const [view, setView] = useState("form"); // form | place | when
-  const [brandId, setBrandId] = useState(BRANDS[0].id);
-  const [place, setPlace] = useState(null); // { brandId, text }
+  const edit = !!initial;
+  const [brandId, setBrandId] = useState(initial?.brand ?? BRANDS[0].id);
+  const [place, setPlace] = useState(initial ? { brandId: initial.brand, text: initial.place } : null); // { brandId, text }
   const [init] = useState(() => defaultStart(date)); // 현재 시각 기준 다음 정각
-  const [start, setStart] = useState(init);
-  const [end, setEnd] = useState(() => plus3h(init)); // 시작 + 3시간
-  const [endTouched, setEndTouched] = useState(false); // 종료를 직접 바꾸면, 이후 시작 변경 시 그 소요 시간을 유지
-  const [travel, setTravel] = useState(0); // 기본값: 없음
-  const [repeat, setRepeat] = useState("none");
-  const [alerts, setAlerts] = useState([]); // 복수 알림 (분 단위, 오름차순)
-  const [memo, setMemo] = useState("");
+  const [start, setStart] = useState(initial?.start ?? init);
+  const [end, setEnd] = useState(() => initial?.end ?? plus3h(init)); // 시작 + 3시간
+  const [endTouched, setEndTouched] = useState(edit); // 종료를 직접 바꾸면, 이후 시작 변경 시 그 소요 시간을 유지
+  const [travel, setTravel] = useState(initial?.travel ?? 0); // 기본값: 없음
+  const [repeat, setRepeat] = useState(initial?.repeat ?? "none");
+  const [alerts, setAlerts] = useState(initial?.alerts ?? []); // 복수 알림 (분 단위, 오름차순)
+  const [memo, setMemo] = useState(initial?.memo ?? "");
 
   const [confirmPause, setConfirmPause] = useState(false);
-  const brand = brandId === "custom" ? { ...CUSTOM, branches: customGyms } : brandOf(brandId);
+  const [scopeAsk, setScopeAsk] = useState(false); // 반복 일정 수정 범위 선택
+  const [scope, setScope] = useState("one");
+  const repeatingEdit = edit && initial.repeat !== "none";
+  const picks = useMemo(() => (edit ? [] : quickPicks(events)), [events, edit]);
+  // 빠른 추가: 누르면 암장/시간/이동시간을 한 번에 채움 (날짜는 지금 선택한 날짜). 저장 전에 자유롭게 수정 가능
+  const usePick = (pk) => {
+    const t = applyPick(pk, date);
+    setPlace({ brandId: pk.brand, text: pk.place }); setBrandId(pk.brand);
+    setStart(t.start); setEnd(t.end); setEndTouched(true); setTravel(pk.travel);
+  };
+  const pickOn = (pk) => place?.text === pk.place && hm(start) === pk.startHm && hm(end) === hm(applyPick(pk, date).end) && travel === pk.travel;
+  const brand = brandOf(brandId);
   // 즐겨찾기는 센터(브랜드) 단위만: 좋아요한 센터를 목록 맨 위로, 같은 그룹 안에서는 가나다순
   const fav = (b) => favs.includes(`b:${b.id}`);
-  const brandsSorted = [...BRANDS, ...(customGyms.length ? [{ ...CUSTOM, branches: customGyms }] : [])].sort((a, b) => Number(fav(b)) - Number(fav(a)) || ko(a.name, b.name));
+  const brandsSorted = [...BRANDS].sort((a, b) => Number(fav(b)) - Number(fav(a)) || ko(a.name, b.name));
   // 지점이 없는 브랜드는 누르는 즉시 선택 완료, 지점이 있는 브랜드는 오른쪽에 지점 목록 표시
   const pickBrand = (b) => {
     setBrandId(b.id);
@@ -37,12 +51,13 @@ export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, pas
     <Sheet onClose={onClose}>
       {(close) => {
         const doSave = () => {
-          onSave({ id: Date.now(), brand: place.brandId, place: place.text, start, end, travel, repeat, alerts, memo: memo.trim() });
+          onSave({ id: initial?.id ?? newId(), brand: place.brandId, place: place.text, start, end, travel, repeat, alerts, memo: memo.trim() }, scope);
           close();
         };
         // 일정 날짜가 같은 브랜드 이용권의 정지 기간에 속하면 조정 확인 팝업
         const conflicts = place ? passes.filter((x) => x.brand === place.brandId && inPause(x, start.slice(0, 10))) : [];
-        const save = () => (conflicts.length ? setConfirmPause(true) : doSave());
+        const proceed = () => (conflicts.length ? setConfirmPause(true) : doSave());
+        const save = () => (repeatingEdit ? setScopeAsk(true) : proceed());
         const back = (to = "form") => <Button variant="ghost" size="icon" onClick={() => setView(to)} aria-label="뒤로"><ChevronLeft size={22} /></Button>;
 
         if (view === "place") return (
@@ -89,10 +104,28 @@ export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, pas
           <>
             <SheetHeader
               left={<Button variant="ghost" size="icon" onClick={close} aria-label="닫기"><X size={22} /></Button>}
-              title="일정 추가"
+              title={edit ? "일정 수정" : "일정 추가"}
               right={<Button variant="ghost" size="bare" className="sheet-action" onClick={save} disabled={!valid}>저장</Button>}
             />
             <SheetBody>
+              {picks.length > 0 && (
+                <Field icon={Zap} label="빠른 추가 (자주 가는 일정)">
+                  <ul className="quick">
+                    {picks.map((pk) => {
+                      const t = applyPick(pk, date);
+                      return (
+                        <li key={pk.key}>
+                          <Button variant="secondary" size="bare" fullWidth className="quick__row" aria-pressed={pickOn(pk)} onClick={() => usePick(pk)}>
+                            <span className="brand-dot" style={{ "--brand": brandOf(pk.brand).color, "--dot-size": "8px" }} />
+                            <span className="quick__place">{pk.place}</span>
+                            <span className="quick__time">{t12(t.start)} – {t12(t.end)}</span>
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Field>
+              )}
               <Field icon={MapPin} label="장소">
                 <Button variant="secondary" size="bare" fullWidth className="add__select" onClick={() => setView("place")}>
                   <span className="add__select-value" data-empty={!place || undefined}>{place?.text ?? "암장을 선택하세요"}</span>
@@ -151,13 +184,26 @@ export default function AddSheet({ date, onClose, onSave, favs, onToggleFav, pas
                 <Input as="textarea" aria-label="메모" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="루트, 같이 가는 사람 등" />
               </Field>
             </SheetBody>
+            {scopeAsk && (
+              <ConfirmSheet role="dialog" label="반복 일정 수정 범위" title="반복 일정 수정" onClose={() => setScopeAsk(false)} actions={(c) => <>
+                <Button variant="secondary" onClick={c}>취소</Button>
+                <Button variant="primary" onClick={() => { setScopeAsk(false); proceed(); }}>저장</Button>
+              </>}>
+                {EDIT_SCOPES.map((o) => (
+                  <Button key={o.id} variant="ghost" size="bare" role="radio" aria-checked={scope === o.id} className="detail__scope" onClick={() => setScope(o.id)}>
+                    <span className="detail__radio" data-on={scope === o.id || undefined} />
+                    {o.label}
+                  </Button>
+                ))}
+              </ConfirmSheet>
+            )}
             {confirmPause && conflicts.length > 0 && (
               <ConfirmSheet label="이용권 정지 기간 조정" title="정지 기간을 일정 전날까지로 조정하시겠습니까?" onClose={() => setConfirmPause(false)} actions={(c) => <>
                 <Button variant="secondary" onClick={c}>취소</Button>
                 <Button variant="primary" onClick={() => { onAdjustPasses(conflicts.map((x) => x.id), start.slice(0, 10)); setConfirmPause(false); doSave(); }}>확인</Button>
               </>}>
                 <p className="ui-sheet__text">
-                  {brandOf(place.brandId).name} {passTitle(conflicts[0])}의 정지 기간({fmtDate(conflicts[0].pause.from)}~{fmtDate(conflicts[0].pause.to)})이 이 일정과 겹쳐요.
+                  {brandOf(place.brandId).name} {passTitle(conflicts[0])}의 정지 기간({fmtDate(pauseAt(conflicts[0], start.slice(0, 10)).from)}~{fmtDate(pauseAt(conflicts[0], start.slice(0, 10)).to)})이 이 일정과 겹쳐요.
                   확인하면 정지가 {fmtDate(addDays(start.slice(0, 10), -1))}까지로 줄고, 만료일도 그만큼 되돌아가요.
                 </p>
               </ConfirmSheet>

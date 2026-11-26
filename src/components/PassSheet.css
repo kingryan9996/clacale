@@ -1,0 +1,14 @@
+.ps-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.ps-fixed { margin: 0; font-size: 15px; font-weight: 600; }
+.ps-fixed span { font-size: 12.5px; font-weight: 400; color: var(--color-text-subtle); }
+.ps-hint { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--color-text-subtle); }
+.ps-error { margin: 0; font-size: 13px; color: var(--color-danger-strong); }
+.ps-warn { margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-warning-strong); }
+.ps-waiting { margin-top: 10px; font-size: 13.5px; }
+.ps-pauses { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ps-pauses > .ui-btn { align-self: flex-start; }
+.ps-pause { display: flex; align-items: center; gap: 6px; width: 100%; }
+.ps-pause .ui-input { flex: 1; min-width: 0; padding: 10px 8px; font-size: 14px; }
+.ps-pause .ui-btn { flex-shrink: 0; }
+.ps-summary { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--color-fill); font-size: 14px; line-height: 1.5; color: var(--color-text-muted); }
+.ps-summary b { color: var(--color-text); }

@@ -71,4 +71,4 @@
 :where(.ui-btn[data-variant="danger-solid"]:disabled) { background: var(--color-disabled-bg); color: var(--color-disabled); opacity: 1; }
 
 /* :focus-visible */
-:where(.ui-btn:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+:where(.ui-btn:focus-visible) { outline: 2px solid var(--color-primary-line); outline-offset: 2px; }

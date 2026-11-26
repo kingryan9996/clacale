@@ -1,0 +1,13 @@
+:where(.ui-checkbox) { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 40px; padding: 6px 0; cursor: pointer; }
+:where(.ui-checkbox__input) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+:where(.ui-checkbox__box) {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 22px; height: 22px; margin-top: 1px;
+  border: 2px solid var(--color-text-faint); border-radius: var(--radius-sm);
+  background: var(--color-surface); color: transparent;
+}
+:where(.ui-checkbox__input:checked + .ui-checkbox__box) { border-color: var(--color-primary-line); background: var(--color-primary); color: var(--color-on-primary); }
+:where(.ui-checkbox__input:focus-visible + .ui-checkbox__box) { outline: 2px solid var(--color-primary-line); outline-offset: 2px; }
+:where(.ui-checkbox__input:disabled + .ui-checkbox__box) { opacity: 0.5; }
+:where(.ui-checkbox__label) { font-size: 14px; line-height: 1.5; color: var(--color-text); }
+:where(.ui-checkbox__label a) { color: var(--color-primary-strong); text-decoration: underline; }

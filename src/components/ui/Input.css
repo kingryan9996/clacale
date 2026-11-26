@@ -21,7 +21,7 @@
 @media (hover: hover) {
   :where(.ui-input:hover:not(:disabled):not(:focus)) { border-color: var(--color-border); }
 }
-:where(.ui-input:focus-visible) { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-soft); }
+:where(.ui-input:focus-visible) { border-color: var(--color-primary-line); box-shadow: 0 0 0 2px var(--color-primary-soft); }
 :where(.ui-input:disabled) { color: var(--color-disabled); cursor: not-allowed; }
 :where(.ui-input[data-invalid]) { border-color: var(--color-danger); }
 :where(.ui-input[data-surface="white"]) { background: var(--color-surface); }

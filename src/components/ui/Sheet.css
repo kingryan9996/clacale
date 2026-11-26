@@ -10,6 +10,10 @@
   transition: transform 0.25s ease-out;
 }
 .ui-sheet__panel[data-show] { transform: translateY(0); }
+.ui-sheet__panel:focus { outline: none; }
+/* 확인/선택 팝업: 내용 높이만큼만 올라오는 시트 */
+.ui-sheet__panel[data-size="auto"] { height: auto; max-height: 88%; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-sheet); }
+.ui-sheet__panel[data-size="auto"] .ui-sheet__body { flex: 0 1 auto; padding-bottom: 8px; }
 
 .ui-sheet__header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 12px 16px; }
 .ui-sheet__title { flex: 1; min-width: 0; margin: 0; padding: 0 8px; text-align: center; font-weight: 700; }

@@ -4,4 +4,6 @@ const mem = {};
 export const store = {
   get(k, d) { try { const v = window.localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
   set(k, v) { try { window.localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } },
+  remove(k) { try { window.localStorage.removeItem(k); } catch (e) { delete mem[k]; } },
+  keys() { try { return Object.keys(window.localStorage); } catch (e) { return Object.keys(mem); } },
 };

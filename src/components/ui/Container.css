@@ -4,10 +4,13 @@
   width: 100%;
   max-width: var(--container-max);
   margin: 0 auto;
-  background: var(--color-bg);
+  background: var(--bg-wall);
   color: var(--color-text);
 }
 .ui-container[data-height="screen"] { height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 .ui-container[data-height="fill"] { height: 100%; }
 .ui-container[data-padded] { padding: 24px; }
-.ui-container[data-center] { display: flex; flex-direction: column; justify-content: center; gap: 12px; overflow-y: auto; }
+.ui-container[data-center] { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+/* 세로 가운데 정렬. justify-content: center 는 내용이 화면보다 길면 위쪽이 잘려 스크롤로도 못 보므로 auto 여백으로 가운데를 맞춘다 */
+.ui-container[data-center] > :first-child { margin-top: auto; }
+.ui-container[data-center] > :last-child { margin-bottom: auto; }

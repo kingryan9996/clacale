@@ -19,7 +19,5 @@ export const ko = (a, b) => a.localeCompare(b, "ko");
 // 브랜드와 지점을 가나다순으로 정렬
 export const BRANDS = BRAND_DATA.map((b) => ({ ...b, branches: [...b.branches].sort(ko) })).sort((a, b) => ko(a.name, b.name));
 
-// 마이페이지에서 등록한 커스텀 암장
-export const CUSTOM = { id: "custom", name: "내 암장", color: "#64748B", branches: [] };
 
-export const brandOf = (id) => (id === "custom" ? CUSTOM : BRANDS.find((b) => b.id === id) ?? BRANDS[0]);
+export const brandOf = (id) => BRANDS.find((b) => b.id === id) ?? BRANDS[0];

@@ -1,14 +1,18 @@
-import { useMemo, useState } from "react";
-import { BarChart3, Car, ChevronDown, ChevronLeft, ChevronRight, Clock, Menu, Plus, StickyNote, User, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, CalendarDays, Car, ChevronDown, ChevronLeft, ChevronRight, Clock, List, Menu, Plus, StickyNote, User, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AdSlot from "@/components/AdSlot";
 import AddSheet from "@/components/AddSheet";
 import DetailSheet, { CrowdBadge } from "@/components/DetailSheet";
 import { Button, Container, Sheet, SheetBody, SheetHeader } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import { PROVIDER_LABEL } from "@/constants/auth";
 import { brandOf, ko } from "@/constants/brands";
+import { CAL_VIEWS, CAL_VIEW_KEY } from "@/constants/nav";
 import { DOW } from "@/constants/schedule";
 import { byStart, t12, today, todayKey, ymd } from "@/lib/dates";
 import { occurrence, occursOn } from "@/lib/events";
+import { store } from "@/lib/store";
 import "@/pages/Calendar.css";
 
 function Meta({ icon: Icon, children }) {
@@ -31,7 +35,7 @@ function MenuSheet({ onStats, onSignOut, onMyPage, onClose }) {
         <>
           <SheetHeader left={closeBtn(close)} title="메뉴" />
           <SheetBody gap={8}>
-            <p className="cal-sheet-note">{guest ? "비회원(Guest) · 이 기기에 저장" : `${session.name} · ${session.provider}`}</p>
+            <p className="cal-sheet-note">{guest ? "비회원(Guest) · 이 기기에 저장" : `${session.name} · ${PROVIDER_LABEL[session.provider] ?? session.provider}`}</p>
             <Button variant="secondary" size="lg" className="cal-menu-item" onClick={onMyPage}><User size={18} />마이페이지</Button>
             <Button variant="secondary" size="lg" className="cal-menu-item" onClick={onStats}><BarChart3 size={18} />내 통계</Button>
             <Button variant="secondary" size="lg" className="cal-menu-item" onClick={onSignOut}>{guest ? "로그인 / 가입" : "로그아웃"}</Button>
@@ -86,16 +90,38 @@ function StatsSheet({ events, ym, onClose }) {
   );
 }
 
+/* 일정 카드: 월간 보기의 선택 날짜 목록과 목록(Agenda) 보기에서 함께 사용 */
+function EventCard({ e, st, onOpen }) {
+  return (
+    <Button variant="ghost" size="bare" className="cal__card" onClick={() => onOpen(e)} aria-label={`${e.place} 일정 상세`}>
+      <span className="cal__card-bar" style={{ "--brand": brandOf(e.brand).color }} />
+      <span className="cal__card-main">
+        <span className="cal__card-head">
+          <span className="cal__card-place">{e.place}</span>
+          <CrowdBadge st={st} />
+        </span>
+        <Meta icon={Clock}>{t12(e.start)} – {t12(e.end)}</Meta>
+        {e.travel > 0 && <Meta icon={Car}>이동 {e.travel}분</Meta>}
+        {e.memo && <Meta icon={StickyNote}>{e.memo}</Meta>}
+      </span>
+    </Button>
+  );
+}
+
 /* ---------- 캘린더 페이지: 월간 달력 + 선택 날짜 일정 리스트 + 추가/상세 시트 ---------- */
-export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, deleteEvent, statOf, favs, toggleFav, passes, customGyms, adjustPasses }) {
+export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, editEvent, deleteEvent, statOf, favs, toggleFav, passes, adjustPasses }) {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const [sheet, setSheet] = useState(false);
   const [ymOpen, setYmOpen] = useState(false);
+  const [editing, setEditing] = useState(null); // 수정 중인 일정(발생분)
   const [detail, setDetail] = useState(null); // 상세 모달에 보여줄 일정(발생분)
   const [menuOpen, setMenuOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState(false);
+  const [mode, setModeState] = useState(() => { const v = store.get(CAL_VIEW_KEY, "month"); return CAL_VIEWS.includes(v) ? v : "month"; });
+  const setMode = (v) => { setModeState(v); store.set(CAL_VIEW_KEY, v); };
+  const agendaRef = useRef(null);
   const cells = useMemo(() => {
     const first = new Date(ym.y, ym.m, 1).getDay();
     const days = new Date(ym.y, ym.m + 1, 0).getDate();
@@ -117,6 +143,16 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
   }, [events, cells, ym]);
   const list = useMemo(() => events.filter((e) => occursOn(e, sel)).map((e) => occurrence(e, sel)).sort(byStart), [events, sel]);
 
+  // 목록 보기: 열 때/달을 바꿀 때, 오늘(또는 오늘 이후 첫 일정이 있는 날)이 맨 위에 오도록 스크롤
+  const agendaDates = Object.keys(byDate).sort();
+  useEffect(() => {
+    const box = agendaRef.current;
+    if (mode !== "agenda" || !box) return;
+    const target = agendaDates.find((k) => k >= todayKey);
+    const el = target && box.querySelector(`[data-date="${target}"]`);
+    box.scrollTop = el ? el.offsetTop : 0;
+  }, [mode, ym]);
+
   const moveMonth = (d) => setYm(({ y, m }) => { const n = new Date(y, m + d, 1); return { y: n.getFullYear(), m: n.getMonth() }; });
   const goToday = () => { setYm({ y: today.getFullYear(), m: today.getMonth() }); setSel(todayKey); setYmOpen(false); };
   // 선택한 날짜가 오늘이 아니거나, 보고 있는 달이 이번 달이 아니면 '오늘' 버튼 표시
@@ -125,8 +161,8 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
   const [sy, sm, sd] = sel.split("-").map(Number);
   const selLabel = `${sm}월 ${sd}일 (${DOW[new Date(sy, sm - 1, sd).getDay()]})`;
 
-  const handleSave = (ev) => {
-    addEvent(ev);
+  const handleSave = (ev, scope) => {
+    if (editing) editEvent(editing, ev, scope); else addEvent(ev);
     const [y, m] = ev.start.slice(0, 10).split("-").map(Number);
     setYm({ y, m: m - 1 });
     setSel(ev.start.slice(0, 10));
@@ -134,8 +170,9 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
   const handleSignOut = () => { setMenuOpen(false); setLoginPrompt(false); signOut(); };
 
   return (
-    <Container height="fill" className="cal">
+    <Container height="fill" className="cal" data-mode={mode}>
       {/* 상단: 헤더 + 월간 캘린더 */}
+      <h1 className="sr-only">클라캘 달력</h1>
       <div className="cal__top">
         <header className="cal__header">
           <div className="cal__nav">
@@ -148,7 +185,12 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
             </Button>
             <Button variant="ghost" size="icon" onClick={() => moveMonth(1)} aria-label="다음 달"><ChevronRight size={20} /></Button>
           </div>
-          <Button variant="ghost" size="icon" aria-label="메뉴" onClick={() => setMenuOpen(true)}><Menu size={22} /></Button>
+          <div className="cal__actions">
+            {mode === "month"
+              ? <Button variant="ghost" size="icon" aria-label="목록으로 보기" onClick={() => setMode("agenda")}><List size={22} /></Button>
+              : <Button variant="ghost" size="icon" aria-label="달력으로 보기" onClick={() => setMode("month")}><CalendarDays size={22} /></Button>}
+            <Button variant="ghost" size="icon" aria-label="메뉴" onClick={() => setMenuOpen(true)}><Menu size={22} /></Button>
+          </div>
 
           {ymOpen && (
             <div className="cal__ym-pop">
@@ -169,7 +211,7 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
           )}
         </header>
 
-        <section className="cal__month">
+        {mode === "month" && <section className="cal__month">
           <div className="cal__dow-row">
             {DOW.map((d, i) => <span key={d} className="cal__dow" data-dow={i}>{d}</span>)}
           </div>
@@ -183,7 +225,8 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
               const first = evs[0]; // 대표 일정 1개 (가장 이른 시작)
               const more = evs.length - 1;
               return (
-                <Button key={i} variant="ghost" size="bare" className="cal__cell" onClick={() => setSel(k)} aria-pressed={k === sel}>
+                <Button key={i} variant="ghost" size="bare" className="cal__cell" onClick={() => setSel(k)} aria-pressed={k === sel} aria-current={k === todayKey ? "date" : undefined}
+                  aria-label={`${ym.m + 1}월 ${d}일 ${DOW[i % 7]}요일${evs.length ? `, 일정 ${evs.length}개` : ""}`}>
                   <span className="cal__day" data-dow={i % 7} data-sel={k === sel || undefined} data-today={k === todayKey || undefined}>{d}</span>
                   {first && (
                     <span className="cal__chip" style={{ "--brand": brandOf(first.brand).color }}>
@@ -195,11 +238,40 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
               );
             })}
           </div>
-        </section>
+        </section>}
       </div>
 
+      {/* 목록(Agenda) 보기: 이 달의 일정을 날짜순으로 */}
+      {mode === "agenda" && (
+        <section className="cal__agenda" ref={agendaRef} aria-label={`${ym.y}년 ${ym.m + 1}월 일정 목록`}>
+          {agendaDates.length === 0 ? (
+            <p className="cal__empty">이 달은 등록된 암장 일정이 없어요.<br />+ 버튼으로 추가해 보세요.</p>
+          ) : agendaDates.map((k) => {
+            const [y, m, d] = k.split("-").map(Number);
+            return (
+              <div key={k} className="cal__agenda-group" data-date={k}>
+                <h3 className="cal__agenda-date" data-today={k === todayKey || undefined}>
+                  {/* 날짜 제목을 누르면 그 날짜로 일정 추가 */}
+                  <Button variant="ghost" size="bare" className="cal__agenda-add" aria-label={`${m}월 ${d}일에 일정 추가`} onClick={() => { setSel(k); setSheet(true); }}>
+                    <span className="cal__agenda-label">
+                      {m}월 {d}일 ({DOW[new Date(y, m - 1, d).getDay()]})
+                      {k === todayKey && <span className="cal__agenda-today">오늘</span>}
+                    </span>
+                    <Plus size={16} className="cal__agenda-plus" aria-hidden="true" />
+                  </Button>
+                </h3>
+                <ul className="cal__list">
+                  {byDate[k].map((e) => <li key={e.id}><EventCard e={e} st={statOf(e)} onOpen={setDetail} /></li>)}
+                </ul>
+              </div>
+            );
+          })}
+          <AdSlot placement="calendarList" className="cal__ad" />
+        </section>
+      )}
+
       {/* 하단: 선택한 날짜 일정 (고정 높이, 내부 스크롤) */}
-      <section className="cal__bottom">
+      {mode === "month" && <section className="cal__bottom">
         <h2 className="cal__sel-title">{selLabel}</h2>
         <div className="cal__list-wrap">
           {list.length === 0 ? (
@@ -207,25 +279,13 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
           ) : (
             <ul className="cal__list">
               {list.map((e) => (
-                <li key={e.id}>
-                  <Button variant="ghost" size="bare" className="cal__card" onClick={() => setDetail(e)} aria-label={`${e.place} 일정 상세`}>
-                    <span className="cal__card-bar" style={{ "--brand": brandOf(e.brand).color }} />
-                    <span className="cal__card-main">
-                      <span className="cal__card-head">
-                        <span className="cal__card-place">{e.place}</span>
-                        <CrowdBadge st={statOf(e)} />
-                      </span>
-                      <Meta icon={Clock}>{t12(e.start)} – {t12(e.end)}</Meta>
-                      {e.travel > 0 && <Meta icon={Car}>이동 {e.travel}분</Meta>}
-                      {e.memo && <Meta icon={StickyNote}>{e.memo}</Meta>}
-                    </span>
-                  </Button>
-                </li>
+                <li key={e.id}><EventCard e={e} st={statOf(e)} onOpen={setDetail} /></li>
               ))}
             </ul>
           )}
+          <AdSlot placement="calendarList" className="cal__ad" />
         </div>
-      </section>
+      </section>}
 
       {/* Floating (+) */}
       <Button variant="fab" className="cal__fab" aria-label="일정 추가" onClick={() => setSheet(true)}>
@@ -237,8 +297,8 @@ export default function Calendar({ ym, setYm, sel, setSel, events, addEvent, del
         <Button variant="primary" size="sm" pill className="cal__today" onClick={goToday} aria-label="오늘로 이동">오늘</Button>
       )}
 
-      {sheet && <AddSheet date={sel} onClose={() => setSheet(false)} onSave={handleSave} favs={favs} onToggleFav={toggleFav} passes={passes} customGyms={customGyms} onAdjustPasses={adjustPasses} />}
-      {detail && <DetailSheet ev={detail} st={statOf(detail)} onClose={() => setDetail(null)} onDelete={deleteEvent} />}
+      {(sheet || editing) && <AddSheet date={sel} initial={editing} events={events} onClose={() => { setSheet(false); setEditing(null); }} onSave={handleSave} favs={favs} onToggleFav={toggleFav} passes={passes} onAdjustPasses={adjustPasses} />}
+      {detail && <DetailSheet ev={detail} st={statOf(detail)} onClose={() => setDetail(null)} onDelete={deleteEvent} onEdit={(o) => { setDetail(null); setEditing(o); }} />}
       {menuOpen && <MenuSheet onStats={openStats} onSignOut={handleSignOut} onMyPage={() => { setMenuOpen(false); navigate("/mypage"); }} onClose={() => setMenuOpen(false)} />}
       {statsOpen && <StatsSheet events={events} ym={ym} onClose={() => setStatsOpen(false)} />}
       {loginPrompt && <LoginPrompt onLogin={handleSignOut} onClose={() => setLoginPrompt(false)} />}

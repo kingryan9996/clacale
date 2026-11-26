@@ -1,4 +1,5 @@
 import { ALERTS, DOW } from "@/constants/schedule";
+import { cmpId } from "@/lib/id";
 
 /* ---------- 날짜 유틸 ---------- */
 export const pad = (n) => String(n).padStart(2, "0");
@@ -16,7 +17,7 @@ export const dayKey = (n) => { const d = new Date(today); d.setDate(d.getDate() 
 export const hm = (s) => s.slice(11, 16);
 
 // 시작 시각 오름차순 -> 같으면 종료 시각 -> 등록 순
-export const byStart = (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.id - b.id;
+export const byStart = (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || cmpId(a.id, b.id);
 
 export const parseKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
 

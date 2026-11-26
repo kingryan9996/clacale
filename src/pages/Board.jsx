@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Plus, StickyNote, Trash2, X } from "lucide-react";
+import AdSlot from "@/components/AdSlot";
+import { ADS } from "@/constants/ads";
 import { Button, Field, Input, Sheet, SheetBody, SheetHeader } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { BOARD_KEY, seedPosts } from "@/constants/board";
 import { fmtShort, toStr } from "@/lib/dates";
+import { newId } from "@/lib/id";
 import { store } from "@/lib/store";
 import "@/pages/Board.css";
 
@@ -27,10 +30,11 @@ export default function Board() {
       </header>
       <div className="board__list">
         {sorted.length === 0 && <p className="board__empty">아직 글이 없어요. 첫 글을 남겨 보세요.</p>}
-        {sorted.map((p) => {
+        {sorted.map((p, i) => {
           const open = openId === p.id;
           return (
-            <article key={p.id} data-post={p.id} className="board__post">
+            <Fragment key={p.id}>
+            <article data-post={p.id} className="board__post">
               <Button variant="ghost" size="bare" className="board__post-btn" aria-expanded={open} onClick={() => setOpenId(open ? null : p.id)}>
                 <span className="board__post-title">{p.title}</span>
                 <span className="board__post-meta">{p.author} · {timeLabel(p.ts)}</span>
@@ -42,6 +46,8 @@ export default function Board() {
                 </div>
               )}
             </article>
+            {(i + 1) % ADS.placements.board.every === 0 && <AdSlot placement="board" />}
+            </Fragment>
           );
         })}
       </div>
@@ -62,7 +68,7 @@ function WriteSheet({ author, onClose, onSubmit }) {
             left={<Button variant="ghost" size="icon" onClick={close} aria-label="닫기"><X size={22} /></Button>}
             title="글쓰기"
             right={<Button variant="ghost" size="bare" className="board__submit" disabled={!valid}
-              onClick={() => { onSubmit({ id: Date.now(), title: title.trim(), body: body.trim(), author, ts: Date.now() }); close(); }}>등록</Button>}
+              onClick={() => { onSubmit({ id: newId(), title: title.trim(), body: body.trim(), author, ts: Date.now() }); close(); }}>등록</Button>}
           />
           <SheetBody>
             <Field icon={StickyNote} label="제목" htmlFor="board-title">
