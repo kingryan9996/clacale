@@ -8,4 +8,8 @@
   color: var(--color-text-subtle); text-decoration: none;
 }
 .tabbar__item[aria-current="page"] { font-weight: 700; color: var(--color-primary-strong); }
-.tabbar__item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.tabbar__item:focus-visible { outline: 2px solid var(--color-primary-line); outline-offset: -2px; }
+
+.tabbar__item { position: relative; }
+.tabbar__dot { position: absolute; top: 6px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--color-danger); }
+.app-loading { margin: 0; text-align: center; font-size: 14px; color: var(--color-text-subtle); }

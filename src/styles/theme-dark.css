@@ -1,0 +1,46 @@
+/* =====================================================================
+   다크 테마 시안 — 기본은 라이트(tokens.css). 미리보기: 주소 뒤에 ?theme=dark (lib/theme.js)
+   컴포넌트 수정 없이 토큰 값만으로 동작합니다. 정식 도입(시스템 설정 연동/토글)은 P1.
+   ===================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #c8f135;
+  --color-primary-hover: #d6f85a;
+  --color-primary-active: #b5dd22;
+  --color-primary-soft: #222a0f;
+  --color-primary-strong: #c8f135; /* 어두운 배경에서는 라임 자체가 텍스트색 */
+  --color-primary-line: #c8f135;
+  --color-on-primary: #14171a;
+  --color-accent: #ff6a45;
+
+  --color-bg: #0e1110;
+  --color-surface: #171b19;
+  --color-fill: #1f2421;
+  --color-border: #2f3632;
+  --color-border-subtle: rgb(242 244 239 / 0.1);
+  --color-text: #f2f4ef;
+  --color-text-muted: rgb(242 244 239 / 0.64);
+  --color-text-subtle: rgb(242 244 239 / 0.54);
+  --color-text-faint: rgb(242 244 239 / 0.42);
+  --color-disabled: rgb(242 244 239 / 0.4);
+  --color-overlay: rgb(0 0 0 / 0.62);
+  --color-bolt: rgb(242 244 239 / 0.09);
+
+  --color-danger: #f0584b;
+  --color-danger-soft: #3a1612;
+  --color-danger-strong: #fca5a5;
+  --color-success-soft: #10372b;
+  --color-success-strong: #6ee7b7;
+  --color-warning-soft: #3d2e0a;
+  --color-warning-strong: #fcd34d;
+  --color-info-soft: #14305e;
+  --color-info-strong: #93c5fd;
+
+  --color-sun: #fb7185;
+  --color-sat: #60a5fa;
+
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 10px 30px rgb(0 0 0 / 0.6);
+  --shadow-sheet: 0 -10px 30px rgb(0 0 0 / 0.6);
+}
